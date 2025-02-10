@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>情绪历史记录 - 生理情绪识别分析系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .history-list {
+            margin-top: 20px;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            transition: transform 0.2s;
+        }
+
+        .history-item:hover {
+            transform: translateX(5px);
+        }
+
+        .emotion-icon {
+            font-size: 40px;
+            margin-right: 20px;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .emotion-info {
+            flex-grow: 1;
+        }
+
+        .emotion-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .emotion-time {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 8px;
+        }
+
+        .emotion-description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .back-btn {
+            background-color: #95a5a6;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .no-history {
+            text-align: center;
+            color: #7f8c8d;
+            padding: 30px;
+            font-size: 16px;
+        }
+
+        .clear-history {
+            background-color: #e74c3c;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            margin-top: 20px;
+            float: right;
+        }
+
+        .clear-history:hover {
+            background-color: #c0392b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <button class="back-btn" onclick="window.location.href='analysis_result.html'">返回分析结果</button>
+        <h1>情绪历史记录</h1>
+
+        <div id="historyList" class="history-list">
+            <!-- 历史记录将通过 JavaScript 动态添加 -->
+        </div>
+
+        <button class="clear-history" onclick="clearHistory()">清空历史记录</button>
+    </div>
+
+    <script>
+        function loadHistory() {
+            const historyList = document.getElementById('historyList');
+            const emotionHistory = JSON.parse(localStorage.getItem('emotionHistory')) || [];
+
+            if (emotionHistory.length === 0) {
+                historyList.innerHTML = '<div class="no-history">暂无情绪分析记录</div>';
+                return;
+            }
+
+            // 按时间倒序排列
+            emotionHistory.reverse();
+
+            historyList.innerHTML = emotionHistory.map(record => `
+                <div class="history-item">
+                    <div class="emotion-icon">${record.icon}</div>
+                    <div class="emotion-info">
+                        <div class="emotion-title">${record.emotion}</div>
+                        <div class="emotion-time">${record.time}</div>
+                        <div class="emotion-description">${record.description}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function clearHistory() {
+            if (confirm('确定要清空所有历史记录吗？')) {
+                localStorage.removeItem('emotionHistory');
+                loadHistory();
+            }
+        }
+
+        // 页面加载时显示历史记录
+        window.addEventListener('load', loadHistory);
+    </script>
+</body>
+
+</html>

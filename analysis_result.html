@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分析结果 - 生理情绪识别分析系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .progress-container {
+            width: 100%;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            width: 0;
+            height: 20px;
+            background-color: #3498db;
+            border-radius: 10px;
+            transition: width 0.5s ease-in-out;
+        }
+
+        .result-container {
+            display: none;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .emotion-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .emotion-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .emotion-description {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #666;
+            margin-bottom: 20px;
+            padding: 0 20px;
+        }
+
+        .suggestion-container {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .suggestion-title {
+            color: #2c3e50;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .back-btn {
+            background-color: #95a5a6;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .analyzing-text {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .history-btn {
+            background-color: #9b59b6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            margin-top: 20px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .history-btn:hover {
+            background-color: #8e44ad;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <button class="back-btn" onclick="window.location.href='submitted_data.html'">返回数据选择</button>
+        <h1>情感分析结果</h1>
+
+        <div id="analyzing-section">
+            <div class="analyzing-text">正在分析数据...</div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div id="result-section" class="result-container">
+            <div class="emotion-icon" id="emotionIcon"></div>
+            <div class="emotion-title" id="emotionTitle"></div>
+            <div class="emotion-description" id="emotionDescription"></div>
+            <div class="suggestion-container">
+                <div class="suggestion-title">情感调节建议</div>
+                <div id="emotionSuggestion"></div>
+            </div>
+            <button class="history-btn" onclick="window.location.href='emotion_history.html'">
+                查看历史情绪
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const emotions = {
+            sad: {
+                icon: '😢',
+                title: '伤心',
+                description: '您当前的情绪状态显示为伤心。这种情绪表明您可能正在经历一些困扰或压力。',
+                suggestion: '1. 尝试与信任的朋友或家人交流您的感受<br>2. 进行15-20分钟的轻度有氧运动<br>3. 听一些舒缓的音乐<br>4. 尝试深呼吸练习来放松身心'
+            },
+            excited: {
+                icon: '🤩',
+                title: '兴奋',
+                description: '您当前的情绪状态显示为兴奋。这是一种积极的情绪状态，表明您可能正在经历一些令人愉悦的事情。',
+                suggestion: '1. 适当控制情绪，避免过度兴奋<br>2. 将这种积极的能量转化为创造性活动<br>3. 与他人分享您的喜悦<br>4. 记录下这个美好的时刻'
+            },
+            calm: {
+                icon: '😌',
+                title: '平静',
+                description: '您当前的情绪状态显示为平静。这是一种理想的情绪状态，表明您的身心处于平衡状态。',
+                suggestion: '1. 保持当前的生活节奏和习惯<br>2. 可以尝试冥想来加深这种平静感<br>3. 享受当下的宁静时刻<br>4. 记录下让您保持平静的因素'
+            },
+            aroused: {
+                icon: '😤',
+                title: '亢奋',
+                description: '您当前的情绪状态显示为亢奋。这种状态表明您的身心处于高度激活状态。',
+                suggestion: '1. 进行深呼吸练习来调节情绪<br>2. 尝试渐进式肌肉放松<br>3. 避免摄入咖啡因等刺激性物质<br>4. 进行一些平和的活动来缓解亢奋状态'
+            }
+        };
+
+        function updateProgress(progress) {
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        function showResult() {
+            const emotionKeys = Object.keys(emotions);
+            const randomEmotion = emotions[emotionKeys[Math.floor(Math.random() * emotionKeys.length)]];
+
+            // 保存情绪记录到 localStorage
+            const emotionHistory = JSON.parse(localStorage.getItem('emotionHistory')) || [];
+            emotionHistory.push({
+                emotion: randomEmotion.title,
+                icon: randomEmotion.icon,
+                time: new Date().toLocaleString(),
+                description: randomEmotion.description
+            });
+            localStorage.setItem('emotionHistory', JSON.stringify(emotionHistory));
+
+            // 显示结果
+            document.getElementById('emotionIcon').textContent = randomEmotion.icon;
+            document.getElementById('emotionTitle').textContent = randomEmotion.title;
+            document.getElementById('emotionDescription').textContent = randomEmotion.description;
+            document.getElementById('emotionSuggestion').innerHTML = randomEmotion.suggestion;
+
+            document.getElementById('analyzing-section').style.display = 'none';
+            document.getElementById('result-section').style.display = 'block';
+        }
+
+        // 模拟分析进度
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += 1;
+            updateProgress(progress);
+            if (progress >= 100) {
+                clearInterval(interval);
+                setTimeout(showResult, 500); // 等待进度条完成后显示结果
+            }
+        }, 50);
+    </script>
+</body>
+
+</html>

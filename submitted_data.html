@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>已提交数据 - 生理情绪识别分析系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .data-list {
+            margin: 20px 0;
+        }
+
+        .data-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .checkbox-wrapper {
+            margin-right: 15px;
+        }
+
+        .data-info {
+            flex-grow: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-content {
+            flex-grow: 1;
+        }
+
+        .analyze-btn {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            margin-top: 20px;
+        }
+
+        .analyze-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .analyze-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .back-btn {
+            background-color: #95a5a6;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .analysis-type {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 18px;
+            color: #2c3e50;
+        }
+
+        .delete-btn {
+            background-color: #e74c3c;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.3s;
+            margin-left: 10px;
+        }
+
+        .delete-btn:hover {
+            background-color: #c0392b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <button class="back-btn" onclick="window.location.href='upload.html'">返回上传页面</button>
+        <h1>已提交的生理数据</h1>
+
+        <div class="data-list">
+            <div class="data-item" id="ppg_item">
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="ppg_data" onchange="updateAnalysisType()" disabled>
+                </div>
+                <div class="data-info">
+                    <div class="data-content">
+                        <h3>PPG数据</h3>
+                        <p id="ppg_file_info">暂未上传数据</p>
+                    </div>
+                    <button class="delete-btn" onclick="deleteData('ppg')" style="display: none;"
+                        id="ppg_delete">删除此条数据</button>
+                </div>
+            </div>
+
+            <div class="data-item" id="ecg_item">
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="ecg_data" onchange="updateAnalysisType()" disabled>
+                </div>
+                <div class="data-info">
+                    <div class="data-content">
+                        <h3>ECG数据</h3>
+                        <p id="ecg_file_info">暂未上传数据</p>
+                    </div>
+                    <button class="delete-btn" onclick="deleteData('ecg')" style="display: none;"
+                        id="ecg_delete">删除此条数据</button>
+                </div>
+            </div>
+
+            <div class="data-item" id="gsr_item">
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="gsr_data" onchange="updateAnalysisType()" disabled>
+                </div>
+                <div class="data-info">
+                    <div class="data-content">
+                        <h3>GSR数据</h3>
+                        <p id="gsr_file_info">暂未上传数据</p>
+                    </div>
+                    <button class="delete-btn" onclick="deleteData('gsr')" style="display: none;"
+                        id="gsr_delete">删除此条数据</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="analysis-type" id="analysisType">
+            请选择要分析的数据
+        </div>
+
+        <div style="text-align: center;">
+            <button class="analyze-btn" id="analyzeBtn" disabled onclick="startAnalysis()">
+                开始分析
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 从 localStorage 获取上传的文件信息
+        function loadUploadedFiles() {
+            const uploadedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || {};
+
+            ['ppg', 'ecg', 'gsr'].forEach(type => {
+                const checkbox = document.getElementById(`${type}_data`);
+                const fileInfo = document.getElementById(`${type}_file_info`);
+                const deleteBtn = document.getElementById(`${type}_delete`);
+
+                if (uploadedFiles[type]) {
+                    checkbox.disabled = false;
+                    fileInfo.innerHTML = `文件名：${uploadedFiles[type].name}<br>上传时间：${uploadedFiles[type].time}`;
+                    deleteBtn.style.display = 'block';
+                } else {
+                    checkbox.disabled = true;
+                    checkbox.checked = false;
+                    fileInfo.textContent = '暂未上传数据';
+                    deleteBtn.style.display = 'none';
+                }
+            });
+
+            // 更新分析类型显示
+            updateAnalysisType();
+        }
+
+        function updateAnalysisType() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:not([disabled])');
+            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const analysisType = document.getElementById('analysisType');
+
+            if (checkedCount === 0) {
+                analysisType.textContent = '请选择要分析的数据';
+                analyzeBtn.disabled = true;
+            } else if (checkedCount === 1) {
+                analysisType.textContent = '将进行单模态情感分析';
+                analyzeBtn.disabled = false;
+            } else {
+                analysisType.textContent = '将进行多模态情感分析';
+                analyzeBtn.disabled = false;
+            }
+        }
+
+        function startAnalysis() {
+            const selectedTypes = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(cb => cb.id.replace('_data', '').toUpperCase());
+            // 将选中的数据类型存储到 localStorage
+            localStorage.setItem('analysisTypes', selectedTypes.join('+'));
+            // 跳转到分析结果页面
+            window.location.href = 'analysis_result.html';
+        }
+
+        function deleteData(type) {
+            if (confirm(`确定要删除这条${type.toUpperCase()}数据吗？`)) {
+                const uploadedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || {};
+                uploadedFiles[type] = null;
+                localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFiles));
+                loadUploadedFiles();
+            }
+        }
+
+        // 页面加载时更新显示
+        window.addEventListener('load', loadUploadedFiles);
+    </script>
+</body>
+
+</html>
