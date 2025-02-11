@@ -443,10 +443,6 @@
                     `${file.name} (上传时间: ${now}) - 上传成功`;
 
                 alert('文件上传成功！');
-
-                if (confirm('是否立即进行数据分析？')) {
-                    window.location.href = 'analysis_result.html';
-                }
             } catch (error) {
                 console.error('完整错误信息:', {
                     message: error.message,
