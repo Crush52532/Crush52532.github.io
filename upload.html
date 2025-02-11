@@ -467,21 +467,18 @@
                     githubUrl: responseData.content.download_url
                 };
 
+                // 保存到 localStorage
                 localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFiles));
 
+                // 更新显示
                 document.getElementById(`${type}FileName`).textContent =
                     `${file.name} (上传时间: ${now}) - 上传成功`;
 
+                // 只显示上传成功提示
                 alert('文件上传成功！');
 
             } catch (error) {
-                console.error('完整错误信息:', {
-                    message: error.message,
-                    error: error,
-                    stack: error.stack,
-                    config: GITHUB_CONFIG
-                });
-                alert(`文件上传失败：\n${error.message}`);
+                alert('文件上传失败：' + error.message);
                 document.getElementById(`${type}FileName`).textContent = '上传失败';
             }
         }
