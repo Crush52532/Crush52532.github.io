@@ -303,8 +303,8 @@
 
         // GitHub 配置
         const GITHUB_CONFIG = {
-            owner: 'Crush52532',           // 改为你的 GitHub 用户名
-            repo: 'Crush52532.github.io',  // 改为你的仓库名
+            owner: 'Crush52532',           // 你的 GitHub 用户名
+            repo: 'Crush52532.github.io',  // 你的仓库名
             branch: 'main'                 // 分支名
         };
 
@@ -352,6 +352,24 @@
                     return;
                 }
 
+                // 首先测试 API 访问
+                try {
+                    const testResponse = await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}`, {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+                    const testData = await testResponse.json();
+                    console.log('仓库访问测试:', testData);
+
+                    if (!testResponse.ok) {
+                        throw new Error(`无法访问仓库: ${testData.message}`);
+                    }
+                } catch (error) {
+                    throw new Error(`仓库访问测试失败: ${error.message}`);
+                }
+
                 const fileInput = document.getElementById(`${type}File`);
                 const file = fileInput.files[0];
 
@@ -392,22 +410,12 @@
                     body: JSON.stringify(requestBody)
                 });
 
-                console.log('收到响应，状态码:', response.status);
+                console.log('响应状态码:', response.status);
                 const responseData = await response.json();
                 console.log('响应数据:', responseData);
 
                 if (!response.ok) {
-                    if (response.status === 401) {
-                        localStorage.removeItem('github_token');
-                        throw new Error(`认证失败：GitHub令牌无效 (状态码: ${response.status})\n${JSON.stringify(responseData)}`);
-                    }
-                    if (response.status === 404) {
-                        throw new Error(`仓库或路径不存在 (状态码: ${response.status})\n请确认仓库名称和路径是否正确`);
-                    }
-                    if (response.status === 422) {
-                        throw new Error(`请求无效 (状态码: ${response.status})\n${JSON.stringify(responseData)}`);
-                    }
-                    throw new Error(`上传失败 (状态码: ${response.status})\n错误信息: ${JSON.stringify(responseData)}`);
+                    throw new Error(`上传失败 (状态码: ${response.status})\n${JSON.stringify(responseData, null, 2)}`);
                 }
 
                 // 更新本地记录
@@ -419,14 +427,11 @@
                     githubUrl: responseData.content.download_url
                 };
 
-                // 保存到 localStorage
                 localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFiles));
 
-                // 更新显示
                 document.getElementById(`${type}FileName`).textContent =
                     `${file.name} (上传时间: ${now}) - 上传成功`;
 
-                // 提示用户上传成功
                 alert('文件上传成功！');
 
                 if (confirm('是否立即进行数据分析？')) {
@@ -436,7 +441,8 @@
                 console.error('完整错误信息:', {
                     message: error.message,
                     error: error,
-                    stack: error.stack
+                    stack: error.stack,
+                    config: GITHUB_CONFIG
                 });
                 alert(`文件上传失败：\n${error.message}`);
                 document.getElementById(`${type}FileName`).textContent = '上传失败';
