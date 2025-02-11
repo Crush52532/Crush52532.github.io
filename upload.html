@@ -303,13 +303,41 @@
 
         // GitHub 配置
         const GITHUB_CONFIG = {
-            token: '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',
-            owner: 'Crush52532',
-            repo: 'Crush52532.github.io',
-            branch: 'main'
+            owner: 'Crush52532',     // 替换为你的 GitHub 用户名
+            repo: 'Crush52532.github.io',     // 替换为你的仓库名
+            branch: 'main'              // 或其他分支名
         };
 
+        // 从 localStorage 获取令牌
+        function getGitHubToken() {
+            return localStorage.getItem('github_token');
+        }
+
+        // 设置令牌
+        function setGitHubToken(token) {
+            localStorage.setItem('github_token', token);
+        }
+
+        // 检查是否需要输入令牌
+        function checkToken() {
+            const token = getGitHubToken();
+            if (!token) {
+                const newToken = prompt('请输入 GitHub 个人访问令牌：');
+                if (newToken) {
+                    setGitHubToken(newToken);
+                }
+                return newToken;
+            }
+            return token;
+        }
+
         async function uploadFile(type) {
+            const token = checkToken();
+            if (!token) {
+                alert('需要 GitHub 令牌才能上传文件！');
+                return;
+            }
+
             const fileInput = document.getElementById(`${type}File`);
             const file = fileInput.files[0];
 
@@ -318,35 +346,66 @@
                 return;
             }
 
-            // 这里可以添加文件验证逻辑
-            const validExtensions = ['.csv', '.npy', '.mat', '.json'];
-            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-            if (!validExtensions.includes(fileExtension)) {
-                alert('不支持的文件格式！请上传 CSV、NPY 或 MAT 文件');
-                return;
-            }
+            try {
+                // 显示上传状态
+                document.getElementById(`${type}FileName`).textContent = '正在上传...';
 
-            // 模拟上传过程
-            const now = new Date().toLocaleString();
-            uploadedFiles[type] = {
-                name: file.name,
-                time: now,
-                status: '已上传'
-            };
+                // 读取文件内容
+                const base64Content = await readFileAsBase64(file);
 
-            // 保存到 localStorage
-            localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFiles));
+                // 生成文件名（时间戳 + 原始文件名）
+                const timestamp = new Date().getTime();
+                const fileName = `data/${type}/${timestamp}_${file.name}`;
 
-            // 更新显示
-            document.getElementById(`${type}FileName`).textContent =
-                `${file.name} (上传时间: ${now}) - 上传成功`;
+                // 上传到 GitHub
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${fileName}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: `Upload ${type} data file`,
+                        content: base64Content,
+                        branch: GITHUB_CONFIG.branch
+                    })
+                });
 
-            // 提示用户上传成功
-            alert('文件上传成功！');
+                if (!response.ok) {
+                    // 如果令牌无效，清除存储的令牌
+                    if (response.status === 401) {
+                        localStorage.removeItem('github_token');
+                    }
+                    throw new Error('上传失败: ' + response.statusText);
+                }
 
-            // 可以选择跳转到数据分析页面
-            if (confirm('是否立即进行数据分析？')) {
-                window.location.href = 'analysis_result.html';
+                const result = await response.json();
+
+                // 更新本地记录
+                const now = new Date().toLocaleString();
+                uploadedFiles[type] = {
+                    name: file.name,
+                    time: now,
+                    status: '已上传',
+                    githubUrl: result.content.download_url
+                };
+
+                // 保存到 localStorage
+                localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFiles));
+
+                // 更新显示
+                document.getElementById(`${type}FileName`).textContent =
+                    `${file.name} (上传时间: ${now}) - 上传成功`;
+
+                // 提示用户上传成功
+                alert('文件上传成功！');
+
+                if (confirm('是否立即进行数据分析？')) {
+                    window.location.href = 'analysis_result.html';
+                }
+            } catch (error) {
+                alert('文件上传失败：' + error.message);
+                document.getElementById(`${type}FileName`).textContent = '上传失败';
             }
         }
     </script>
