@@ -385,10 +385,20 @@
                 const base64Content = await readFileAsBase64(file);
                 console.log('文件读取完成');
 
-                // 生成文件名（时间戳 + 原始文件名）
-                const timestamp = new Date().getTime();
-                const fileName = `data/${type}/${timestamp}_${file.name}`;
+                // 修改文件命名格式
+                const timestamp = new Date().toISOString()
+                    .replace(/[:-]/g, '')  // 移除日期中的 : 和 -
+                    .replace('T', '_')     // 将 T 替换为下划线
+                    .replace(/\..+/, '');  // 移除毫秒部分
+
+                // 获取文件扩展名
+                const fileExtension = file.name.split('.').pop();
+
+                // 新的文件名格式：时间_类型.扩展名
+                const fileName = `data/${type}/${timestamp}_${type}.${fileExtension}`;
                 console.log('准备上传文件:', fileName);
+
+                // 示例输出：data/ppg/20240120_143022_ppg.csv
 
                 const requestUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${fileName}`;
                 console.log('请求 URL:', requestUrl);
