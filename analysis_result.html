@@ -120,113 +120,101 @@
         .history-btn:hover {
             background-color: #8e44ad;
         }
-
-        .emotion-happy {
-            color: #27ae60;
-        }
-
-        .emotion-sad {
-            color: #2980b9;
-        }
-
-        .emotion-excited {
-            color: #e74c3c;
-        }
-
-        .emotion-calm {
-            color: #95a5a6;
-        }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>分析结果</h1>
-        <div id="resultContent">
-            <div class="emotion-result">
-                <h2>情绪状态：<span id="emotionState"></span></h2>
-                <div id="emotionIcon"></div>
-                <p id="emotionDescription"></p>
+        <button class="back-btn" onclick="window.location.href='submitted_data.html'">返回数据选择</button>
+        <h1>情感分析结果</h1>
+
+        <div id="analyzing-section">
+            <div class="analyzing-text">正在分析数据...</div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
             </div>
+        </div>
+
+        <div id="result-section" class="result-container">
+            <div class="emotion-icon" id="emotionIcon"></div>
+            <div class="emotion-title" id="emotionTitle"></div>
+            <div class="emotion-description" id="emotionDescription"></div>
+            <div class="suggestion-container">
+                <div class="suggestion-title">情感调节建议</div>
+                <div id="emotionSuggestion"></div>
+            </div>
+            <button class="history-btn" onclick="window.location.href='emotion_history.html'">
+                查看历史情绪
+            </button>
         </div>
     </div>
 
     <script>
-        async function getLatestAnalysisResult() {
-            try {
-                const response = await fetch('emotion_analysis.log');
-                const logText = await response.text();
-
-                // 查找最新的预测结果
-                const lines = logText.split('\n').reverse();
-                for (const line of lines) {
-                    if (line.includes('预测结果:')) {
-                        const match = line.match(/预测结果: (.*?) \(标签 (\d+)\)/);
-                        if (match) {
-                            return {
-                                emotion: match[1],
-                                label: parseInt(match[2])
-                            };
-                        }
-                    }
-                }
-                return null;
-            } catch (error) {
-                console.error('获取分析结果失败:', error);
-                return null;
+        const emotions = {
+            sad: {
+                icon: '😢',
+                title: '伤心',
+                description: '您当前的情绪状态显示为伤心。这种情绪表明您可能正在经历一些困扰或压力。',
+                suggestion: '1. 尝试与信任的朋友或家人交流您的感受<br>2. 进行15-20分钟的轻度有氧运动<br>3. 听一些舒缓的音乐<br>4. 尝试深呼吸练习来放松身心'
+            },
+            excited: {
+                icon: '🤩',
+                title: '兴奋',
+                description: '您当前的情绪状态显示为兴奋。这是一种积极的情绪状态，表明您可能正在经历一些令人愉悦的事情。',
+                suggestion: '1. 适当控制情绪，避免过度兴奋<br>2. 将这种积极的能量转化为创造性活动<br>3. 与他人分享您的喜悦<br>4. 记录下这个美好的时刻'
+            },
+            calm: {
+                icon: '😌',
+                title: '平静',
+                description: '您当前的情绪状态显示为平静。这是一种理想的情绪状态，表明您的身心处于平衡状态。',
+                suggestion: '1. 保持当前的生活节奏和习惯<br>2. 可以尝试冥想来加深这种平静感<br>3. 享受当下的宁静时刻<br>4. 记录下让您保持平静的因素'
+            },
+            aroused: {
+                icon: '😤',
+                title: '亢奋',
+                description: '您当前的情绪状态显示为亢奋。这种状态表明您的身心处于高度激活状态。',
+                suggestion: '1. 进行深呼吸练习来调节情绪<br>2. 尝试渐进式肌肉放松<br>3. 避免摄入咖啡因等刺激性物质<br>4. 进行一些平和的活动来缓解亢奋状态'
             }
+        };
+
+        function updateProgress(progress) {
+            document.getElementById('progressBar').style.width = progress + '%';
         }
 
-        function updateEmotionDisplay(emotion) {
-            const emotionState = document.getElementById('emotionState');
-            const emotionIcon = document.getElementById('emotionIcon');
-            const emotionDescription = document.getElementById('emotionDescription');
+        function showResult() {
+            const emotionKeys = Object.keys(emotions);
+            const randomEmotion = emotions[emotionKeys[Math.floor(Math.random() * emotionKeys.length)]];
 
-            // 清除现有的情绪类
-            emotionState.className = '';
+            // 保存情绪记录到 localStorage
+            const emotionHistory = JSON.parse(localStorage.getItem('emotionHistory')) || [];
+            emotionHistory.push({
+                emotion: randomEmotion.title,
+                icon: randomEmotion.icon,
+                time: new Date().toLocaleString(),
+                description: randomEmotion.description
+            });
+            localStorage.setItem('emotionHistory', JSON.stringify(emotionHistory));
 
-            // 根据情绪设置显示
-            switch (emotion) {
-                case '平静':
-                    emotionState.textContent = '平静';
-                    emotionState.className = 'emotion-calm';
-                    emotionIcon.innerHTML = '😌';
-                    emotionDescription.textContent = '您目前处于平静状态，心情比较放松。';
-                    break;
-                case '伤心':
-                    emotionState.textContent = '伤心';
-                    emotionState.className = 'emotion-sad';
-                    emotionIcon.innerHTML = '😢';
-                    emotionDescription.textContent = '您目前的情绪有些低落，建议寻找让自己开心的事情。';
-                    break;
-                case '亢奋':
-                    emotionState.textContent = '亢奋';
-                    emotionState.className = 'emotion-excited';
-                    emotionIcon.innerHTML = '😲';
-                    emotionDescription.textContent = '您目前处于亢奋状态，建议适当放松。';
-                    break;
-                case '愉悦':
-                    emotionState.textContent = '愉悦';
-                    emotionState.className = 'emotion-happy';
-                    emotionIcon.innerHTML = '😊';
-                    emotionDescription.textContent = '您目前心情愉悦，希望这种好心情能持续下去。';
-                    break;
-                default:
-                    emotionState.textContent = '未知';
-                    emotionIcon.innerHTML = '❓';
-                    emotionDescription.textContent = '无法识别当前情绪状态。';
-            }
+            // 显示结果
+            document.getElementById('emotionIcon').textContent = randomEmotion.icon;
+            document.getElementById('emotionTitle').textContent = randomEmotion.title;
+            document.getElementById('emotionDescription').textContent = randomEmotion.description;
+            document.getElementById('emotionSuggestion').innerHTML = randomEmotion.suggestion;
+
+            document.getElementById('analyzing-section').style.display = 'none';
+            document.getElementById('result-section').style.display = 'block';
         }
 
-        // 页面加载时获取并显示最新结果
-        window.addEventListener('load', async () => {
-            const result = await getLatestAnalysisResult();
-            if (result) {
-                updateEmotionDisplay(result.emotion);
-            } else {
-                updateEmotionDisplay('未知');
+        // 模拟分析进度
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += 1;
+            updateProgress(progress);
+            if (progress >= 100) {
+                clearInterval(interval);
+                setTimeout(showResult, 500); // 等待进度条完成后显示结果
             }
-        });
+        }, 50);
     </script>
 </body>
 
