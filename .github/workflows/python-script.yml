@@ -9,9 +9,13 @@ on:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 添加写入权限
     
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0  # 获取完整历史
     
     - name: Set up Python
       uses: actions/setup-python@v2
@@ -29,8 +33,8 @@ jobs:
         
     - name: Commit results
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add analysis_results.json
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add analysis_results.json analysis_summary.json
         git commit -m "Update emotion analysis results" || echo "No changes to commit"
         git push
