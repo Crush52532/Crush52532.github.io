@@ -345,21 +345,21 @@
         }
 
         async function uploadFile(type) {
-            const token = checkToken();
-            if (!token) {
-                alert('需要 GitHub 令牌才能上传文件！');
-                return;
-            }
-
-            const fileInput = document.getElementById(`${type}File`);
-            const file = fileInput.files[0];
-
-            if (!file) {
-                alert('请先选择文件');
-                return;
-            }
-
             try {
+                const token = checkToken();
+                if (!token) {
+                    alert('需要 GitHub 令牌才能上传文件！');
+                    return;
+                }
+
+                const fileInput = document.getElementById(`${type}File`);
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    alert('请先选择文件');
+                    return;
+                }
+
                 // 显示上传状态
                 document.getElementById(`${type}FileName`).textContent = '正在上传...';
 
@@ -384,15 +384,18 @@
                     })
                 });
 
+                // 获取详细的错误信息
+                const responseData = await response.json();
+
                 if (!response.ok) {
                     // 如果令牌无效，清除存储的令牌
                     if (response.status === 401) {
                         localStorage.removeItem('github_token');
+                        throw new Error(`认证失败：GitHub令牌无效 (状态码: ${response.status})`);
                     }
-                    throw new Error('上传失败: ' + response.statusText);
+                    // 其他错误情况
+                    throw new Error(`上传失败 (状态码: ${response.status})\n错误信息: ${JSON.stringify(responseData.message || responseData)}`);
                 }
-
-                const result = await response.json();
 
                 // 更新本地记录
                 const now = new Date().toLocaleString();
@@ -400,7 +403,7 @@
                     name: file.name,
                     time: now,
                     status: '已上传',
-                    githubUrl: result.content.download_url
+                    githubUrl: responseData.content.download_url
                 };
 
                 // 保存到 localStorage
@@ -417,6 +420,7 @@
                     window.location.href = 'analysis_result.html';
                 }
             } catch (error) {
+                console.error('上传错误详情:', error);
                 alert('文件上传失败：' + error.message);
                 document.getElementById(`${type}FileName`).textContent = '上传失败';
             }
