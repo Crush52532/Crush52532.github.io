@@ -153,6 +153,31 @@
         .view-submitted-btn:hover {
             background-color: #27ae60;
         }
+
+        .analysis-section {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .analyze-btn {
+            background-color: #2ecc71;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .analyze-btn:hover {
+            background-color: #27ae60;
+        }
+
+        .result-text {
+            margin-top: 10px;
+            font-size: 16px;
+            color: #2c3e50;
+        }
     </style>
 </head>
 
@@ -228,9 +253,10 @@
             查看已提交的生理数据
         </button>
 
-        <button id="startAnalysisBtn" class="view-submitted-btn">
-            立即进行数据分析
-        </button>
+        <div class="analysis-section">
+            <button id="startAnalysisBtn" class="analyze-btn">开始分析</button>
+            <div id="analysisResult" class="result-text"></div>
+        </div>
     </div>
 
     <script>
@@ -448,9 +474,6 @@
 
                 alert('文件上传成功！');
 
-                if (confirm('是否立即进行数据分析？')) {
-                    window.location.href = 'analysis_result.html';
-                }
             } catch (error) {
                 console.error('完整错误信息:', {
                     message: error.message,
@@ -486,8 +509,58 @@
             }
         }
 
-        // 添加分析按钮的事件监听器
-        document.getElementById('startAnalysisBtn').addEventListener('click', startAnalysis);
+        // 添加获取最新分析结果的函数
+        async function getLatestAnalysisResult() {
+            try {
+                const response = await fetch('emotion_analysis.log');
+                const logText = await response.text();
+
+                // 查找最新的预测结果
+                const lines = logText.split('\n').reverse();
+                for (const line of lines) {
+                    if (line.includes('预测结果:')) {
+                        const match = line.match(/预测结果: (.*?) \(标签 (\d+)\)/);
+                        if (match) {
+                            return {
+                                emotion: match[1],
+                                label: parseInt(match[2])
+                            };
+                        }
+                    }
+                }
+                return null;
+            } catch (error) {
+                console.error('获取分析结果失败:', error);
+                return null;
+            }
+        }
+
+        // 显示分析结果的函数
+        async function showAnalysisResult() {
+            const result = await getLatestAnalysisResult();
+            if (result) {
+                document.getElementById('analysisResult').textContent =
+                    `最新情绪分析结果：${result.emotion}`;
+            } else {
+                document.getElementById('analysisResult').textContent =
+                    '暂无分析结果';
+            }
+        }
+
+        // 添加分析按钮点击事件
+        document.getElementById('startAnalysisBtn').addEventListener('click', async () => {
+            try {
+                // 启动分析
+                await startAnalysis();
+
+                // 等待一段时间后获取结果
+                setTimeout(async () => {
+                    await showAnalysisResult();
+                }, 5000); // 等待5秒后显示结果
+            } catch (error) {
+                alert('分析失败：' + error.message);
+            }
+        });
     </script>
 </body>
 

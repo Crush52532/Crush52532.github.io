@@ -17,6 +17,14 @@ logging.basicConfig(
     ]
 )
 
+# 添加情绪标签映射
+EMOTION_LABELS = {
+    0: "平静",
+    1: "伤心",
+    2: "亢奋",
+    3: "愉悦"
+}
+
 def get_latest_file(directory):
     """获取目录中最新的数据文件"""
     files = [f for f in os.listdir(directory) if f.endswith(('.csv', '.npy', '.mat'))]
@@ -92,7 +100,8 @@ def analyze_latest_data():
                 
                 # 预测情绪
                 predicted_label = model.predict(data)[0]
-                logging.info(f"预测结果: {predicted_label}")
+                emotion_text = EMOTION_LABELS.get(predicted_label, "未知")
+                logging.info(f"预测结果: {emotion_text} (标签 {predicted_label})")
                 
                 # 获取文件时间戳
                 timestamp = file_name.split('_')[0]
@@ -102,7 +111,8 @@ def analyze_latest_data():
                     'file_name': file_name,
                     'data_type': data_type,
                     'time': time_str,
-                    'emotion': str(predicted_label),
+                    'emotion': emotion_text,
+                    'emotion_label': int(predicted_label),
                     'processed_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 }
                 results.append(result)
