@@ -301,8 +301,15 @@
         // 页面加载时更新显示
         window.addEventListener('load', updateFileDisplay);
 
-        // 添加文件上传函数
-        function uploadFile(type) {
+        // GitHub 配置
+        const GITHUB_CONFIG = {
+            token: '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',
+            owner: 'Crush52532',
+            repo: 'Crush52532.github.io',
+            branch: 'main'
+        };
+
+        async function uploadFile(type) {
             const fileInput = document.getElementById(`${type}File`);
             const file = fileInput.files[0];
 
