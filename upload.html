@@ -363,38 +363,51 @@
                 // 显示上传状态
                 document.getElementById(`${type}FileName`).textContent = '正在上传...';
 
-                // 读取文件内容
+                console.log('开始读取文件...');
                 const base64Content = await readFileAsBase64(file);
+                console.log('文件读取完成');
 
                 // 生成文件名（时间戳 + 原始文件名）
                 const timestamp = new Date().getTime();
                 const fileName = `data/${type}/${timestamp}_${file.name}`;
+                console.log('准备上传文件:', fileName);
 
-                // 上传到 GitHub
-                const response = await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${fileName}`, {
+                const requestUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${fileName}`;
+                console.log('请求 URL:', requestUrl);
+
+                const requestBody = {
+                    message: `Upload ${type} data file`,
+                    content: base64Content,
+                    branch: GITHUB_CONFIG.branch
+                };
+                console.log('发送请求...');
+
+                const response = await fetch(requestUrl, {
                     method: 'PUT',
                     headers: {
                         'Authorization': `token ${token}`,
                         'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
                     },
-                    body: JSON.stringify({
-                        message: `Upload ${type} data file`,
-                        content: base64Content,
-                        branch: GITHUB_CONFIG.branch
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
-                // 获取详细的错误信息
+                console.log('收到响应，状态码:', response.status);
                 const responseData = await response.json();
+                console.log('响应数据:', responseData);
 
                 if (!response.ok) {
-                    // 如果令牌无效，清除存储的令牌
                     if (response.status === 401) {
                         localStorage.removeItem('github_token');
-                        throw new Error(`认证失败：GitHub令牌无效 (状态码: ${response.status})`);
+                        throw new Error(`认证失败：GitHub令牌无效 (状态码: ${response.status})\n${JSON.stringify(responseData)}`);
                     }
-                    // 其他错误情况
-                    throw new Error(`上传失败 (状态码: ${response.status})\n错误信息: ${JSON.stringify(responseData.message || responseData)}`);
+                    if (response.status === 404) {
+                        throw new Error(`仓库或路径不存在 (状态码: ${response.status})\n请确认仓库名称和路径是否正确`);
+                    }
+                    if (response.status === 422) {
+                        throw new Error(`请求无效 (状态码: ${response.status})\n${JSON.stringify(responseData)}`);
+                    }
+                    throw new Error(`上传失败 (状态码: ${response.status})\n错误信息: ${JSON.stringify(responseData)}`);
                 }
 
                 // 更新本地记录
@@ -420,8 +433,12 @@
                     window.location.href = 'analysis_result.html';
                 }
             } catch (error) {
-                console.error('上传错误详情:', error);
-                alert('文件上传失败：' + error.message);
+                console.error('完整错误信息:', {
+                    message: error.message,
+                    error: error,
+                    stack: error.stack
+                });
+                alert(`文件上传失败：\n${error.message}`);
                 document.getElementById(`${type}FileName`).textContent = '上传失败';
             }
         }
