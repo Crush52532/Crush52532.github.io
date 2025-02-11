@@ -331,6 +331,19 @@
             return token;
         }
 
+        // 将文件转换为 Base64
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64Content = reader.result.split(',')[1];
+                    resolve(base64Content);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         async function uploadFile(type) {
             const token = checkToken();
             if (!token) {
