@@ -112,6 +112,28 @@
         .clear-history:hover {
             background-color: #c0392b;
         }
+
+        .edit-time-btn {
+            background-color: #3498db;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .edit-time-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .datetime-input {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
     </style>
 </head>
 
@@ -137,19 +159,59 @@
                 return;
             }
 
-            // 按时间倒序排列
-            emotionHistory.reverse();
+            // 按时间排序
+            emotionHistory.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-            historyList.innerHTML = emotionHistory.map(record => `
+            historyList.innerHTML = emotionHistory.map((record, index) => `
                 <div class="history-item">
                     <div class="emotion-icon">${record.icon}</div>
                     <div class="emotion-info">
                         <div class="emotion-title">${record.emotion}</div>
-                        <div class="emotion-time">${record.time}</div>
+                        <div class="emotion-time">
+                            <span id="time-${index}">${record.time}</span>
+                            <button class="edit-time-btn" onclick="editTime(${index})">修改时间</button>
+                        </div>
                         <div class="emotion-description">${record.description}</div>
                     </div>
                 </div>
             `).join('');
+        }
+
+        function editTime(index) {
+            const emotionHistory = JSON.parse(localStorage.getItem('emotionHistory')) || [];
+            const record = emotionHistory[index];
+            const timeSpan = document.getElementById(`time-${index}`);
+
+            // 创建日期时间输入框
+            const currentTime = new Date(record.time);
+            const year = currentTime.getFullYear();
+            const month = String(currentTime.getMonth() + 1).padStart(2, '0');
+            const day = String(currentTime.getDate()).padStart(2, '0');
+            const hours = String(currentTime.getHours()).padStart(2, '0');
+            const minutes = String(currentTime.getMinutes()).padStart(2, '0');
+
+            const defaultDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+            timeSpan.innerHTML = `
+                <input type="datetime-local" class="datetime-input" value="${defaultDateTime}">
+                <button class="edit-time-btn" onclick="saveTime(${index})">保存</button>
+                <button class="edit-time-btn" onclick="loadHistory()">取消</button>
+            `;
+        }
+
+        function saveTime(index) {
+            const emotionHistory = JSON.parse(localStorage.getItem('emotionHistory')) || [];
+            const input = document.querySelector(`#time-${index} input`);
+            const newTime = new Date(input.value);
+
+            if (isNaN(newTime.getTime())) {
+                alert('请输入有效的日期时间！');
+                return;
+            }
+
+            emotionHistory[index].time = newTime.toLocaleString();
+            localStorage.setItem('emotionHistory', JSON.stringify(emotionHistory));
+            loadHistory(); // 重新加载并排序历史记录
         }
 
         function clearHistory() {
