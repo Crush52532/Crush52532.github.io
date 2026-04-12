@@ -1,0 +1,17 @@
+【Supabase 网页端操作清单】
+
+1) 注册 / 登录 https://supabase.com ，新建一个 Organization（若还没有）。
+
+2) New project：填写项目名称、数据库密码（请自己保存）、选区域（可选离中国较近的区），创建项目（约 1～2 分钟）。
+
+3) 打开左侧 SQL Editor → New query，将本目录下 schema.sql 的全部内容粘贴进去 → 点击 Run（成功应无红色报错）。
+
+4) 打开左侧 Project Settings（齿轮）→ API：
+   - 复制 Project URL
+   - 复制 anon public 密钥（以 ey 开头的一长串）
+
+5) 在本站代码中打开 js/supabase-config.js，把上面两项分别填入 url 与 anonKey，保存后重新部署网站。
+
+6) 打开工作台：若配置正确，顶部徽章会显示「云端」；未配置或加载失败则显示「本地」（仍使用浏览器 localStorage）。
+
+注意：切勿把 service_role 密钥写入前端；anon 密钥可公开，但请配合 schema 中的 RLS 策略使用。若将来需要更强安全，可改为 Supabase 登录用户并收紧策略。

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作室 — 上周工时报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/main.css" />
+  </head>
+  <body>
+    <div class="page-bg" id="pageBg"></div>
+    <div class="wrap">
+      <div class="card">
+        <div class="card-inner">
+          <div class="topbar">
+            <div>
+              <h1 id="reportPageTitle">上周工时报告</h1>
+              <p class="sub" style="margin: 0" id="reportRange"></p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap">
+              <span class="badge" id="empBadge">—</span>
+              <a href="dashboard.html" class="btn btn-ghost" style="font-size: 0.88rem; padding: 0.45rem 0.85rem">返回工作台</a>
+              <button type="button" class="btn btn-ghost" id="btnLogout" style="font-size: 0.88rem; padding: 0.45rem 0.85rem">
+                退出
+              </button>
+            </div>
+          </div>
+
+          <p class="sub" style="margin: 0 0 1rem; font-size: 0.82rem">
+            统计按<strong>上周一至上周日</strong>的打卡会话汇总；固定日配置读取<strong>该周</strong>在本地已保存的「本周固定工作日」选择（若该周从未保存过则默认周一至周五）。
+          </p>
+
+          <div class="report-block" id="reportBlock">
+            <div id="reportContent"></div>
+          </div>
+        </div>
+      </div>
+      <p class="footer-note">数据保存在本机浏览器。</p>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/worktime.js"></script>
+    <script src="js/report.js"></script>
+  </body>
+</html>

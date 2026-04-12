@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作室 — 工作台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/main.css" />
+  </head>
+  <body>
+    <div class="page-bg" id="pageBg"></div>
+    <div class="wrap">
+      <div class="card">
+        <div class="card-inner">
+          <div class="topbar">
+            <div>
+              <h1>工作台</h1>
+              <p class="sub" style="margin: 0">日历、上/下工打卡与工时统计</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap">
+              <span class="badge" id="empBadge">—</span>
+              <a href="select.html" class="btn btn-ghost" style="font-size: 0.88rem; padding: 0.45rem 0.85rem">切换成员</a>
+              <button type="button" class="btn btn-ghost" id="btnLogout" style="font-size: 0.88rem; padding: 0.45rem 0.85rem">
+                退出
+              </button>
+            </div>
+          </div>
+
+          <div class="dashboard-main">
+            <aside class="cal-mini" aria-labelledby="cal-title">
+              <div class="calendar-head">
+                <h2 id="cal-title">日历</h2>
+                <div class="cal-nav">
+                  <button type="button" id="prevMonth" aria-label="上月">‹</button>
+                  <button type="button" id="nextMonth" aria-label="下月">›</button>
+                </div>
+              </div>
+              <p class="punch-hint" id="monthLabel" style="margin: 0 0 0.5rem; font-size: 0.78rem"></p>
+              <div class="cal-grid" id="calDow"></div>
+              <div class="cal-grid" id="calDays"></div>
+
+              <div class="year-progress" aria-label="年度进度">
+                <div class="year-progress-head">
+                  <span class="year-progress-label">年度进度</span>
+                  <span class="year-progress-pct" id="yearPct">—</span>
+                </div>
+                <div class="year-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="yearBar">
+                  <div class="year-progress-fill" id="yearFill"></div>
+                </div>
+                <p class="year-progress-note" id="yearNote"></p>
+              </div>
+
+              <a href="report.html" class="btn btn-ghost report-sidebar-btn">查看上周工时报告</a>
+            </aside>
+
+            <div class="punch-column">
+              <div class="rule-box">
+                <strong>规定摘要</strong>：固定段为每日 <strong>14:00–17:00</strong> 与 <strong>20:00–21:00</strong>（计 4h）；一周须选
+                <strong>5 个固定工作日</strong>，固定段周合计目标 <strong>20h</strong>。固定日内时段外另需弹性
+                <strong>2h/日</strong>（周计约 <strong>10h</strong>）；周总工时目标 <strong>40h</strong>。系统按打卡时段自动拆分固定窗口内与弹性工时。
+              </div>
+
+              <div class="weekday-panel">
+                <div class="weekday-view" id="weekdayView">
+                  <span class="label">本周固定工作日</span>
+                  <p class="weekday-summary" id="weekdaySummary">—</p>
+                  <button type="button" class="btn btn-ghost btn-week-edit" id="btnWeekEdit">修改</button>
+                </div>
+                <div class="weekday-editor" id="weekdayEditor" hidden>
+                  <span class="label">请选择恰好 5 天，确认后生效</span>
+                  <div class="weekday-row">
+                    <label class="chk"><input type="checkbox" data-wd="0" />周一</label>
+                    <label class="chk"><input type="checkbox" data-wd="1" />周二</label>
+                    <label class="chk"><input type="checkbox" data-wd="2" />周三</label>
+                    <label class="chk"><input type="checkbox" data-wd="3" />周四</label>
+                    <label class="chk"><input type="checkbox" data-wd="4" />周五</label>
+                    <label class="chk"><input type="checkbox" data-wd="5" />周六</label>
+                    <label class="chk"><input type="checkbox" data-wd="6" />周日</label>
+                  </div>
+                  <p class="weekday-hint" id="weekdayHint"></p>
+                  <div class="weekday-edit-actions">
+                    <button type="button" class="btn btn-primary" id="btnWeekConfirm">确认修改</button>
+                    <button type="button" class="btn btn-ghost" id="btnWeekCancel">取消</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="punch-split">
+                <div class="punch-card punch-card--in">
+                  <h4>上工</h4>
+                  <p class="hint">开始一段连续工作（可与固定段、弹性重叠）</p>
+                  <div class="time-display" id="inTimeDisplay">—</div>
+                  <button type="button" class="btn-punch-in" id="btnStart">上工打卡</button>
+                </div>
+                <div class="punch-card punch-card--out">
+                  <h4>下工</h4>
+                  <p class="hint">结束当前这一段工作</p>
+                  <div class="time-display" id="outTimeDisplay">—</div>
+                  <button type="button" class="btn-punch-out" id="btnEnd">下工打卡</button>
+                </div>
+              </div>
+              <p class="punch-toast" id="punchToast"></p>
+
+              <h4 class="section-title">今日会话</h4>
+              <ul class="log-list" id="todayLog"></ul>
+            </div>
+          </div>
+
+          <div class="punch-zone" style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border)">
+            <h3 id="task-title">日常任务</h3>
+            <p class="sub" style="font-size: 0.88rem; margin-bottom: 0.65rem">当前成员任务</p>
+            <form class="task-row" id="taskForm">
+              <input type="text" id="taskInput" placeholder="添加新任务…" maxlength="200" />
+              <button type="submit" class="btn btn-primary">添加</button>
+            </form>
+            <ul class="tasks-ul" id="taskList"></ul>
+          </div>
+        </div>
+      </div>
+      <p class="footer-note">数据保存在本机浏览器；更换设备或清除站点数据会丢失记录。</p>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/worktime.js"></script>
+    <script src="js/dashboard.js"></script>
+  </body>
+</html>

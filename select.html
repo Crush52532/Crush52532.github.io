@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作室 — 选择记录人</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/main.css" />
+  </head>
+  <body>
+    <div class="page-bg" id="pageBg"></div>
+    <div class="wrap">
+      <div class="card">
+        <div class="card-inner">
+          <h1>选择记录身份</h1>
+          <p class="sub">点击下方按钮进入对应成员的工作台（H 红色主题 / W 蓝色主题）</p>
+          <div class="flex">
+            <button type="button" class="btn btn-h flex-1" data-emp="H" aria-label="成员 H">
+              H
+            </button>
+            <button type="button" class="btn btn-w flex-1" data-emp="W" aria-label="成员 W">
+              W
+            </button>
+          </div>
+          <div class="mt-2">
+            <a href="index.html" class="btn btn-ghost" style="width: 100%; text-align: center; display: block; box-sizing: border-box">退出登录</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="js/storage.js"></script>
+    <script>
+      (function () {
+        var img = new Image();
+        img.onload = function () {
+          document.getElementById("pageBg").classList.remove("no-img");
+        };
+        img.onerror = function () {
+          document.getElementById("pageBg").classList.add("no-img");
+        };
+        img.src = "1.png";
+
+        if (!StudioStore.checkAuth()) {
+          window.location.href = "index.html";
+          return;
+        }
+        StudioStore.touchAuth();
+
+        document.querySelectorAll("[data-emp]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var emp = btn.getAttribute("data-emp");
+            StudioStore.setEmployee(emp);
+            window.location.href = "dashboard.html";
+          });
+        });
+
+        document.querySelector('a[href="index.html"]').addEventListener("click", function (e) {
+          e.preventDefault();
+          StudioStore.clearAuth();
+          window.location.href = "index.html";
+        });
+      })();
+    </script>
+  </body>
+</html>

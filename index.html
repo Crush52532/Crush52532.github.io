@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作室 — 进入</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/main.css" />
+  </head>
+  <body>
+    <div class="page-bg" id="pageBg"></div>
+    <div class="wrap">
+      <div class="card">
+        <div class="card-inner">
+          <h1>工作室日常</h1>
+          <p class="sub">请输入访问密码以继续。登录后 <strong>5 分钟内</strong>刷新或进入各页会<strong>自动续期</strong>；超过 5 分钟未续期需重新登录。</p>
+          <form id="loginForm" autocomplete="off">
+            <label for="pwd">密码</label>
+            <input
+              id="pwd"
+              type="password"
+              name="password"
+              placeholder="输入密码"
+              required
+            />
+            <div class="mt-2">
+              <button type="submit" class="btn btn-primary" style="width: 100%">
+                进入
+              </button>
+            </div>
+            <p class="err" id="errMsg" aria-live="polite"></p>
+          </form>
+        </div>
+      </div>
+      <p class="footer-note">请将背景图 <code>1.png</code> 放在本站根目录以启用背景装饰。</p>
+    </div>
+    <script src="js/storage.js"></script>
+    <script>
+      (function () {
+        var img = new Image();
+        img.onload = function () {
+          document.getElementById("pageBg").classList.remove("no-img");
+        };
+        img.onerror = function () {
+          document.getElementById("pageBg").classList.add("no-img");
+        };
+        img.src = "1.png";
+
+        if (StudioStore.checkAuth()) {
+          StudioStore.touchAuth();
+          window.location.href = "select.html";
+          return;
+        }
+
+        document.getElementById("loginForm").addEventListener("submit", function (e) {
+          e.preventDefault();
+          var input = document.getElementById("pwd").value;
+          var err = document.getElementById("errMsg");
+          if (StudioStore.verifyPassword(input)) {
+            StudioStore.setAuth();
+            window.location.href = "select.html";
+          } else {
+            err.textContent = "密码错误，请重试。";
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
