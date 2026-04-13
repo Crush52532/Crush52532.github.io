@@ -27,13 +27,38 @@
     return Date.now() + "-" + Math.random().toString(36).slice(2, 9);
   }
 
+  var SESSION_MAX_MS = 6 * 60 * 60 * 1000;
+  var NOTE_MAX_LEN = 2000;
+
   function mapSessionRow(row) {
     return {
       id: row.id,
       employee: row.employee,
       start: row.starts_at,
-      end: row.ends_at == null ? null : row.ends_at
+      end: row.ends_at == null ? null : row.ends_at,
+      note: row.work_note != null && row.work_note !== undefined ? String(row.work_note) : ""
     };
+  }
+
+  function normalizeLocalSession(s) {
+    if (!s || typeof s !== "object") return s;
+    return {
+      id: s.id,
+      employee: s.employee,
+      start: s.start,
+      end: s.end == null ? null : s.end,
+      note: s.note != null ? String(s.note) : ""
+    };
+  }
+
+  function replaceSessionInArray(arr, id, session) {
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].id === id) {
+        arr[i] = session;
+        return i;
+      }
+    }
+    return -1;
   }
 
   function mapTaskRow(row) {
@@ -173,9 +198,165 @@
     },
 
     getSessions: function () {
-      if (_cloud) return _sessions.slice();
-      var arr = safeParse(localStorage.getItem(SESSION_KEY), []);
-      return Array.isArray(arr) ? arr : [];
+      var raw;
+      if (_cloud) raw = _sessions.slice();
+      else {
+        var arr = safeParse(localStorage.getItem(SESSION_KEY), []);
+        raw = Array.isArray(arr) ? arr : [];
+      }
+      return raw.map(normalizeLocalSession);
+    },
+
+    SESSION_MAX_MS: SESSION_MAX_MS,
+    DISPLAY_12H_MS: 12 * 60 * 60 * 1000,
+
+    /**
+     * 单段最长 6h；自动为超时未下工的会话补上结束时间与备注
+     * @returns {Promise<void>}
+     */
+    ensureSessionLimits: function () {
+      var self = this;
+      var list = _cloud ? _sessions : self.getSessions();
+      var maxMs = SESSION_MAX_MS;
+      var toClose = [];
+      list.forEach(function (s) {
+        if (s.end) return;
+        var st = new Date(s.start).getTime();
+        if (Date.now() - st >= maxMs) {
+          toClose.push(s);
+        }
+      });
+      if (toClose.length === 0) return Promise.resolve();
+      var noteAuto = "（系统自动下工：单段已满6小时）";
+      return toClose.reduce(function (chain, s) {
+        return chain.then(function () {
+          var endIso = new Date(new Date(s.start).getTime() + maxMs).toISOString();
+          return self.forceEndSession(s.id, endIso, noteAuto);
+        });
+      }, Promise.resolve());
+    },
+
+    /**
+     * 将未结束会话强制结束（用于超时）
+     */
+    forceEndSession: function (id, endIso, noteText) {
+      var self = this;
+      var list = _cloud ? _sessions : self.getSessions();
+      var s = list.filter(function (x) {
+        return x.id === id;
+      })[0];
+      if (!s || s.end) return Promise.resolve();
+      var note = String(noteText || "").slice(0, NOTE_MAX_LEN);
+
+      if (!_cloud) {
+        var copy = self.getSessions().map(normalizeLocalSession);
+        var idx = -1;
+        for (var i = 0; i < copy.length; i++) {
+          if (copy[i].id === id) {
+            idx = i;
+            break;
+          }
+        }
+        if (idx < 0) return Promise.resolve();
+        copy[idx].end = endIso;
+        copy[idx].note = note;
+        self.saveSessionsLocal(copy);
+        return Promise.resolve();
+      }
+
+      return _sb
+        .from("studio_sessions")
+        .update({ ends_at: endIso, work_note: note })
+        .eq("id", id)
+        .select()
+        .single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var mapped = mapSessionRow(res.data);
+          replaceSessionInArray(_sessions, id, mapped);
+        });
+    },
+
+    /**
+     * 修改已结束会话的上/下工时间（时长不得超过 6h）
+     */
+    updateSessionTimes: function (id, startIso, endIso) {
+      var self = this;
+      var st = new Date(startIso).getTime();
+      var en = new Date(endIso).getTime();
+      if (!(st < en) || en - st > SESSION_MAX_MS) {
+        return Promise.reject(new Error("时间无效：结束须晚于开始，且单段不超过6小时"));
+      }
+      var list = self.getSessions();
+      var cur = list.filter(function (x) {
+        return x.id === id;
+      })[0];
+      if (!cur || !cur.end) {
+        return Promise.reject(new Error("只能修改已结束的会话"));
+      }
+
+      if (!_cloud) {
+        var copy = list.map(normalizeLocalSession);
+        for (var a = 0; a < copy.length; a++) {
+          if (copy[a].id === id) {
+            copy[a].start = startIso;
+            copy[a].end = endIso;
+            break;
+          }
+        }
+        self.saveSessionsLocal(copy);
+        return Promise.resolve();
+      }
+
+      return _sb
+        .from("studio_sessions")
+        .update({ starts_at: startIso, ends_at: endIso })
+        .eq("id", id)
+        .select()
+        .single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var mapped = mapSessionRow(res.data);
+          replaceSessionInArray(_sessions, id, mapped);
+        });
+    },
+
+    /**
+     * 修改未结束会话的上工时间
+     */
+    updateOpenSessionStart: function (id, startIso) {
+      var self = this;
+      var list = self.getSessions();
+      var cur = list.filter(function (x) {
+        return x.id === id;
+      })[0];
+      if (!cur || cur.end) {
+        return Promise.reject(new Error("只能修改进行中的会话的上工时间"));
+      }
+
+      if (!_cloud) {
+        var copy = list.map(normalizeLocalSession);
+        for (var b = 0; b < copy.length; b++) {
+          if (copy[b].id === id) {
+            copy[b].start = startIso;
+            break;
+          }
+        }
+        self.saveSessionsLocal(copy);
+        return Promise.resolve();
+      }
+
+      return _sb
+        .from("studio_sessions")
+        .update({ starts_at: startIso })
+        .eq("id", id)
+        .select()
+        .single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          var mapped = mapSessionRow(res.data);
+          replaceSessionInArray(_sessions, id, mapped);
+        });
     },
 
     saveSessionsLocal: function (list) {
@@ -203,7 +384,7 @@
       }
       var id = genId();
       var startIso = new Date().toISOString();
-      var rec = { id: id, employee: employee, start: startIso, end: null };
+      var rec = { id: id, employee: employee, start: startIso, end: null, note: "" };
 
       if (!_cloud) {
         var list = self.getSessions();
@@ -218,7 +399,8 @@
           id: id,
           employee: employee,
           starts_at: startIso,
-          ends_at: null
+          ends_at: null,
+          work_note: null
         })
         .select()
         .single()
@@ -231,9 +413,10 @@
     },
 
     /**
-     * @returns {Promise<{id,employee,start,end}|null>}
+     * @param {string} workNote 下工时填写的工作内容（简要）
+     * @returns {Promise<{id,employee,start,end,note}|null>}
      */
-    endSession: function (employee) {
+    endSession: function (employee, workNote) {
       var self = this;
       var list = self.getSessions();
       var open = null;
@@ -246,17 +429,29 @@
         }
       }
       if (!open) return Promise.resolve(null);
-      var endIso = new Date().toISOString();
+      var startMs = new Date(open.start).getTime();
+      var capMs = startMs + SESSION_MAX_MS;
+      var endIso = new Date(Math.min(Date.now(), capMs)).toISOString();
+      var note = String(workNote != null ? workNote : "").trim().slice(0, NOTE_MAX_LEN);
 
       if (!_cloud) {
-        open.end = endIso;
-        self.saveSessionsLocal(list);
-        return Promise.resolve(open);
+        var copy = list.map(normalizeLocalSession);
+        for (var j = 0; j < copy.length; j++) {
+          if (copy[j].id === open.id) {
+            copy[j].end = endIso;
+            copy[j].note = note;
+            break;
+          }
+        }
+        self.saveSessionsLocal(copy);
+        return Promise.resolve(
+          Object.assign({}, open, { end: endIso, note: note })
+        );
       }
 
       return _sb
         .from("studio_sessions")
-        .update({ ends_at: endIso })
+        .update({ ends_at: endIso, work_note: note || null })
         .eq("id", open.id)
         .select()
         .single()
@@ -266,9 +461,9 @@
           if (idx >= 0 && idx < _sessions.length) {
             _sessions[idx] = mapped;
           } else {
-            for (var j = 0; j < _sessions.length; j++) {
-              if (_sessions[j].id === open.id) {
-                _sessions[j] = mapped;
+            for (var k = 0; k < _sessions.length; k++) {
+              if (_sessions[k].id === open.id) {
+                _sessions[k] = mapped;
                 break;
               }
             }

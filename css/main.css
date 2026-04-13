@@ -853,3 +853,140 @@ code {
   padding: 0.1em 0.35em;
   border-radius: 4px;
 }
+
+.log-list--dual {
+  max-height: 340px;
+}
+
+.log-list--dual li.log-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.log-list--dual li.log-row--h {
+  border-left: 4px solid #e11d48;
+  background: #fff5f6;
+}
+
+.log-list--dual li.log-row--w {
+  border-left: 4px solid #2563eb;
+  background: #eff6ff;
+}
+
+.log-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.log-emp-tag {
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+}
+
+.log-emp-tag.h {
+  color: #be123c;
+}
+
+.log-emp-tag.w {
+  color: #1d4ed8;
+}
+
+.session-note-line {
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  width: 100%;
+}
+
+.btn-tiny {
+  font-size: 0.72rem !important;
+  padding: 0.2rem 0.45rem !important;
+}
+
+.modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-root[hidden] {
+  display: none !important;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.modal-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.1rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modal-panel h4 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.modal-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 0.65rem;
+  line-height: 1.45;
+}
+
+.modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-family: inherit;
+  font-size: 0.88rem;
+  resize: vertical;
+  min-height: 72px;
+}
+
+.modal-label {
+  font-size: 0.78rem;
+  margin: 0.25rem 0 0.2rem;
+  display: block;
+  color: var(--muted);
+}
+
+.modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin-bottom: 0.45rem;
+  font-size: 0.88rem;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  justify-content: flex-end;
+}

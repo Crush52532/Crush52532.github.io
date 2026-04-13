@@ -60,7 +60,7 @@
 
             <div class="punch-column">
               <div class="rule-box">
-                <strong>规定摘要</strong>：固定段为每日 <strong>14:00–17:00</strong> 与 <strong>20:00–21:00</strong>（计 4h）；一周须选
+                <strong>规定摘要</strong>：单次上工—下工最长 <strong>6 小时</strong>，超时自动下工。固定段为每日 <strong>14:00–17:00</strong> 与 <strong>20:00–21:00</strong>（计 4h）；一周须选
                 <strong>5 个固定工作日</strong>，固定段周合计目标 <strong>20h</strong>。固定日内时段外另需弹性
                 <strong>2h/日</strong>（周计约 <strong>10h</strong>）；周总工时目标 <strong>40h</strong>。系统按打卡时段自动拆分固定窗口内与弹性工时。
               </div>
@@ -106,8 +106,8 @@
               </div>
               <p class="punch-toast" id="punchToast"></p>
 
-              <h4 class="section-title">今日会话</h4>
-              <ul class="log-list" id="todayLog"></ul>
+              <h4 class="section-title">最近 12 小时会话（H 红 / W 蓝，按上工时间排序）</h4>
+              <ul class="log-list log-list--dual" id="todayLog"></ul>
             </div>
           </div>
 
@@ -124,6 +124,38 @@
       </div>
       <p class="footer-note">数据保存在本机浏览器；更换设备或清除站点数据会丢失记录。</p>
     </div>
+
+    <div id="modalEndNote" class="modal-root" hidden>
+      <div class="modal-backdrop" id="modalEndNoteBackdrop"></div>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalEndTitle">
+        <h4 id="modalEndTitle">本段工作记录</h4>
+        <p class="modal-hint">下工后可简要填写本时段工作内容（选填）</p>
+        <textarea id="endNoteText" class="modal-textarea" rows="3" maxlength="2000" placeholder="例如：修图、客户沟通、脚本整理…"></textarea>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-primary" id="endNoteConfirm">确认下工</button>
+          <button type="button" class="btn btn-ghost" id="endNoteCancel">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalEditSession" class="modal-root" hidden>
+      <div class="modal-backdrop" id="modalEditBackdrop"></div>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalEditTitle">
+        <h4 id="modalEditTitle">修改打卡时间</h4>
+        <p class="modal-hint" id="modalEditHint">补打卡或修正时间；单段时长不得超过 6 小时。</p>
+        <label class="modal-label" for="editStart">上工时间</label>
+        <input type="datetime-local" id="editStart" class="modal-input" />
+        <div id="editEndWrap">
+          <label class="modal-label" for="editEnd">下工时间</label>
+          <input type="datetime-local" id="editEnd" class="modal-input" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-primary" id="editSessionSave">保存</button>
+          <button type="button" class="btn btn-ghost" id="editSessionCancel">取消</button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="js/supabase-config.js"></script>
     <script src="js/storage.js"></script>

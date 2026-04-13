@@ -27,6 +27,9 @@
 
   S.init()
     .then(function () {
+      return S.ensureSessionLimits();
+    })
+    .then(function () {
       runDashboard();
     })
     .catch(function (e) {
@@ -76,7 +79,6 @@
     var list = S.getSessions();
     for (var i = 0; i < list.length; i++) {
       var s = list[i];
-      if (s.employee !== emp) continue;
       if (!s.end) {
         if (dk(new Date(s.start)) === key) return true;
         continue;
@@ -245,10 +247,75 @@
       });
   });
 
+  var modalEnd = document.getElementById("modalEndNote");
+  var endNoteText = document.getElementById("endNoteText");
+  var modalEdit = document.getElementById("modalEditSession");
+  var editStart = document.getElementById("editStart");
+  var editEnd = document.getElementById("editEnd");
+  var editEndWrap = document.getElementById("editEndWrap");
+  var editingSessionId = null;
+
+  function isoToDatetimeLocalValue(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    var h = String(d.getHours()).padStart(2, "0");
+    var min = String(d.getMinutes()).padStart(2, "0");
+    return y + "-" + m + "-" + day + "T" + h + ":" + min;
+  }
+
+  function sessionOverlapsLast12h(s) {
+    var now = Date.now();
+    var w0 = now - S.DISPLAY_12H_MS;
+    var s0 = new Date(s.start).getTime();
+    var e0 = s.end ? new Date(s.end).getTime() : now;
+    return Math.max(s0, w0) < Math.min(e0, now);
+  }
+
+  function openEndNoteModal() {
+    endNoteText.value = "";
+    modalEnd.removeAttribute("hidden");
+  }
+
+  function closeEndNoteModal() {
+    modalEnd.setAttribute("hidden", "");
+  }
+
+  function openEditModal(s) {
+    editingSessionId = s.id;
+    editStart.value = isoToDatetimeLocalValue(s.start);
+    if (s.end) {
+      editEndWrap.style.display = "";
+      editEnd.value = isoToDatetimeLocalValue(s.end);
+    } else {
+      editEndWrap.style.display = "none";
+      editEnd.value = "";
+    }
+    modalEdit.removeAttribute("hidden");
+  }
+
+  function closeEditModal() {
+    editingSessionId = null;
+    modalEdit.setAttribute("hidden", "");
+  }
+
   btnEnd.addEventListener("click", function () {
     punchToast.textContent = "";
-    S.endSession(emp)
+    if (!S.getOpenSession(emp)) {
+      punchToast.textContent = "当前没有进行中的上工记录。";
+      punchToast.style.color = "#dc2626";
+      return;
+    }
+    openEndNoteModal();
+  });
+
+  document.getElementById("endNoteConfirm").addEventListener("click", function () {
+    var note = endNoteText.value;
+    S.endSession(emp, note)
       .then(function (r) {
+        closeEndNoteModal();
         if (!r) {
           punchToast.textContent = "当前没有进行中的上工记录。";
           punchToast.style.color = "#dc2626";
@@ -268,66 +335,133 @@
       });
   });
 
-  function todayKey() {
-    return dk(new Date());
-  }
+  document.getElementById("endNoteCancel").addEventListener("click", closeEndNoteModal);
+  document.getElementById("modalEndNoteBackdrop").addEventListener("click", closeEndNoteModal);
+
+  document.getElementById("editSessionCancel").addEventListener("click", closeEditModal);
+  document.getElementById("modalEditBackdrop").addEventListener("click", closeEditModal);
+
+  document.getElementById("editSessionSave").addEventListener("click", function () {
+    if (!editingSessionId) return;
+    var s = S.getSessions().filter(function (x) {
+      return x.id === editingSessionId;
+    })[0];
+    if (!s) {
+      closeEditModal();
+      return;
+    }
+    var startVal = editStart.value;
+    if (!startVal) {
+      punchToast.textContent = "请填写上工时间";
+      punchToast.style.color = "#dc2626";
+      return;
+    }
+    var startIso = new Date(startVal).toISOString();
+    var p;
+    if (s.end) {
+      var endVal = editEnd.value;
+      if (!endVal) {
+        punchToast.textContent = "请填写下工时间";
+        punchToast.style.color = "#dc2626";
+        return;
+      }
+      var endIso = new Date(endVal).toISOString();
+      p = S.updateSessionTimes(editingSessionId, startIso, endIso);
+    } else {
+      p = S.updateOpenSessionStart(editingSessionId, startIso);
+    }
+    p.then(function () {
+      closeEditModal();
+      punchToast.style.color = "#0d9488";
+      punchToast.textContent = "时间已更新";
+      refreshPunchUI();
+      renderTodayLog();
+      renderCalendar();
+    }).catch(function (err) {
+      punchToast.style.color = "#dc2626";
+      punchToast.textContent = (err && err.message) || "保存失败";
+    });
+  });
 
   function renderTodayLog() {
     var list = document.getElementById("todayLog");
-    var tk = todayKey();
     list.innerHTML = "";
 
-    var items = [];
-    S.getSessions().forEach(function (s) {
-      if (s.employee !== emp) return;
-      if (!s.end) {
-        if (dk(new Date(s.start)) === tk) {
-          items.push({ type: "open", s: s });
-        }
-        return;
-      }
-      var st = new Date(s.start);
-      var en = new Date(s.end);
-      var k1 = dk(st);
-      var k2 = dk(en);
-      if (k1 === tk || k2 === tk) {
-        items.push({ type: "done", s: s });
-      }
-    });
-
+    var items = S.getSessions().filter(sessionOverlapsLast12h);
     items.sort(function (a, b) {
-      return new Date(b.s.start) - new Date(a.s.start);
+      return new Date(a.start) - new Date(b.start);
     });
 
     if (items.length === 0) {
-      var li = document.createElement("li");
-      li.textContent = "今日暂无会话";
-      list.appendChild(li);
+      var empty = document.createElement("li");
+      empty.textContent = "最近 12 小时内暂无会话";
+      empty.style.cssText = "display:block;border:none;background:transparent;";
+      list.appendChild(empty);
       return;
     }
 
-    items.forEach(function (it) {
-      var s = it.s;
+    items.forEach(function (s) {
       var li = document.createElement("li");
-      if (it.type === "open") {
-        li.innerHTML =
-          '<span>进行中</span><span class="log-time">上工 ' +
-          formatDT(s.start) +
-          "</span>";
+      li.className = "log-row " + (s.employee === "H" ? "log-row--h" : "log-row--w");
+
+      var top = document.createElement("div");
+      top.className = "log-row-top";
+
+      var tag = document.createElement("span");
+      tag.className = "log-emp-tag " + (s.employee === "H" ? "h" : "w");
+      tag.textContent = s.employee === "H" ? "H" : "W";
+
+      var meta = document.createElement("div");
+      meta.style.textAlign = "right";
+      meta.style.flex = "1";
+      if (!s.end) {
+        meta.textContent = "进行中 · 上工 " + formatDT(s.start);
       } else {
-        var m = W.sessionTotalMin(s.start, s.end);
-        li.innerHTML =
-          '<span>' +
-          fmtH(m / 60) +
-          "h</span><span class=\"log-time\">" +
+        var mins = W.sessionTotalMin(s.start, s.end);
+        meta.textContent =
+          fmtH(mins / 60) +
+          "h · " +
           formatDT(s.start) +
           " → " +
-          formatDT(s.end) +
-          "</span>";
+          formatDT(s.end);
       }
+
+      top.appendChild(tag);
+      top.appendChild(meta);
+      li.appendChild(top);
+
+      if (s.note) {
+        var noteEl = document.createElement("div");
+        noteEl.className = "session-note-line";
+        noteEl.textContent = "记录：" + s.note;
+        li.appendChild(noteEl);
+      }
+
+      var btnRow = document.createElement("div");
+      btnRow.style.display = "flex";
+      btnRow.style.justifyContent = "flex-end";
+      btnRow.style.marginTop = "0.25rem";
+      var editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "btn btn-ghost btn-tiny";
+      editBtn.textContent = "修改时间";
+      editBtn.addEventListener("click", function () {
+        openEditModal(s);
+      });
+      btnRow.appendChild(editBtn);
+      li.appendChild(btnRow);
+
       list.appendChild(li);
     });
   }
+
+  setInterval(function () {
+    S.ensureSessionLimits().then(function () {
+      refreshPunchUI();
+      renderTodayLog();
+      renderCalendar();
+    });
+  }, 60000);
 
   function readChecksToArr() {
     var arr = [];

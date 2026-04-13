@@ -5,6 +5,7 @@
 2) New project：填写项目名称、数据库密码（请自己保存）、选区域（可选离中国较近的区），创建项目（约 1～2 分钟）。
 
 3) 打开左侧 SQL Editor → New query，将本目录下 schema.sql 的全部内容粘贴进去 → 点击 Run（成功应无红色报错）。
+   若项目是很早以前建的、还没有「下工备注」列，请再执行一次 migration_add_work_note.sql。
 
 4) 打开左侧 Project Settings（齿轮）→ API：
    - 复制 Project URL

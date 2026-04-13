@@ -6,7 +6,8 @@ create table if not exists public.studio_sessions (
   id text primary key,
   employee text not null check (employee in ('H', 'W')),
   starts_at timestamptz not null,
-  ends_at timestamptz
+  ends_at timestamptz,
+  work_note text
 );
 
 -- 日常任务
