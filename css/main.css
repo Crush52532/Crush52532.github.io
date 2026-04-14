@@ -753,6 +753,67 @@ body.theme-w .btn-punch-out {
   border-top: 1px dashed var(--border);
 }
 
+.week-progress-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.85rem 0.9rem;
+}
+
+.week-progress-card h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.92rem;
+}
+
+.cal-mini .week-progress-card {
+  margin-top: 0.75rem;
+}
+
+.week-progress-row + .week-progress-row {
+  margin-top: 0.65rem;
+}
+
+.week-progress-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.week-progress-name {
+  font-weight: 700;
+  font-size: 0.84rem;
+}
+
+.week-progress-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: right;
+}
+
+.week-progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.week-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.week-progress-fill--h {
+  background: linear-gradient(90deg, #fb7185, #be123c);
+}
+
+.week-progress-fill--w {
+  background: linear-gradient(90deg, #60a5fa, #1d4ed8);
+}
+
 .report-block.monday-banner {
   border: 1px solid rgba(13, 148, 136, 0.35);
   border-radius: 14px;

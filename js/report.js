@@ -80,9 +80,39 @@
 
     var wkKey = S.getWeekKey(lastMon);
     var fixed = S.getFixedDaysForWeek(wkKey);
+    var thisWkKey = S.getWeekKey(mon);
+    var thisWeekFixed = S.getFixedDaysForWeek(thisWkKey);
 
     var reportContent = document.getElementById("reportContent");
     reportContent.innerHTML = "";
+    var weekProgressContent = document.getElementById("weekProgressContent");
+    if (weekProgressContent) weekProgressContent.innerHTML = "";
+
+    ["H", "W"].forEach(function (eid) {
+      var thisWeekRep = W.buildReport(eid, mon, S.getSessions(), thisWeekFixed);
+      var rawPct = Math.max(0, (thisWeekRep.totalH / W.TARGET_TOTAL_H) * 100);
+      var barPct = Math.min(100, rawPct);
+      if (weekProgressContent) {
+        var row = document.createElement("div");
+        row.className = "week-progress-row";
+        row.innerHTML =
+          "<div class=\"week-progress-row-head\">" +
+          "<span class=\"week-progress-name\">" +
+          eid +
+          "</span>" +
+          "<span class=\"week-progress-meta\">" +
+          fmtH(thisWeekRep.totalH) +
+          "h / 40h（" +
+          rawPct.toFixed(1) +
+          "%）</span></div>" +
+          "<div class=\"week-progress-bar\"><div class=\"week-progress-fill week-progress-fill--" +
+          eid.toLowerCase() +
+          "\" style=\"width:" +
+          barPct.toFixed(1) +
+          "%\"></div></div>";
+        weekProgressContent.appendChild(row);
+      }
+    });
 
     ["H", "W"].forEach(function (eid) {
       var rep = W.buildReport(eid, lastMon, S.getSessions(), fixed);

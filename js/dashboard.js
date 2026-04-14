@@ -205,6 +205,40 @@
     return (Math.round(h * 10) / 10).toFixed(1);
   }
 
+  function renderWeekProgress() {
+    var root = document.getElementById("weekProgressContent");
+    if (!root) return;
+    root.innerHTML = "";
+    var mon = S.mondayOfWeek(new Date());
+    var thisWkKey = S.getWeekKey(mon);
+    var thisWeekFixed = S.getFixedDaysForWeek(thisWkKey);
+    var sessions = S.getSessions();
+
+    ["H", "W"].forEach(function (eid) {
+      var rep = W.buildReport(eid, mon, sessions, thisWeekFixed);
+      var rawPct = Math.max(0, (rep.totalH / W.TARGET_TOTAL_H) * 100);
+      var barPct = Math.min(100, rawPct);
+      var row = document.createElement("div");
+      row.className = "week-progress-row";
+      row.innerHTML =
+        "<div class=\"week-progress-row-head\">" +
+        "<span class=\"week-progress-name\">" +
+        eid +
+        "</span>" +
+        "<span class=\"week-progress-meta\">" +
+        fmtH(rep.totalH) +
+        "h / 40h（" +
+        rawPct.toFixed(1) +
+        "%）</span></div>" +
+        "<div class=\"week-progress-bar\"><div class=\"week-progress-fill week-progress-fill--" +
+        eid.toLowerCase() +
+        "\" style=\"width:" +
+        barPct.toFixed(1) +
+        "%\"></div></div>";
+      root.appendChild(row);
+    });
+  }
+
   var btnStart = document.getElementById("btnStart");
   var btnEnd = document.getElementById("btnEnd");
   var inTimeDisplay = document.getElementById("inTimeDisplay");
@@ -240,6 +274,7 @@
         refreshPunchUI();
         renderTodayLog();
         renderCalendar();
+        renderWeekProgress();
       })
       .catch(function (err) {
         punchToast.style.color = "#dc2626";
@@ -328,6 +363,7 @@
         refreshPunchUI();
         renderTodayLog();
         renderCalendar();
+        renderWeekProgress();
       })
       .catch(function (err) {
         punchToast.style.color = "#dc2626";
@@ -377,6 +413,7 @@
       refreshPunchUI();
       renderTodayLog();
       renderCalendar();
+      renderWeekProgress();
     }).catch(function (err) {
       punchToast.style.color = "#dc2626";
       punchToast.textContent = (err && err.message) || "保存失败";
@@ -460,6 +497,7 @@
       refreshPunchUI();
       renderTodayLog();
       renderCalendar();
+      renderWeekProgress();
     });
   }, 60000);
 
@@ -592,6 +630,7 @@
 
   renderCalendar();
   renderAnnualProgress();
+  renderWeekProgress();
   refreshPunchUI();
   renderTodayLog();
   renderTasks();
