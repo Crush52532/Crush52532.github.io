@@ -205,6 +205,88 @@
     return (Math.round(h * 10) / 10).toFixed(1);
   }
 
+  var weekDetailPanel = document.getElementById("weekDetailPanel");
+  var weekDetailList = document.getElementById("weekDetailList");
+  var weekDetailHint = document.getElementById("weekDetailHint");
+  var btnWeekDetailToggle = document.getElementById("btnWeekDetailToggle");
+
+  function formatRange(startIso, endIso) {
+    var startText = formatDT(startIso);
+    if (!endIso) return startText + " → 进行中";
+    return startText + " → " + formatDT(endIso);
+  }
+
+  function getWeekContributionHours(s, weekStart, weekEnd) {
+    var st = new Date(s.start).getTime();
+    var en = s.end ? new Date(s.end).getTime() : Date.now();
+    var left = Math.max(st, weekStart.getTime());
+    var right = Math.min(en, weekEnd.getTime());
+    if (right <= left) return 0;
+    return (right - left) / 3600000;
+  }
+
+  function renderWeekSessionDetails() {
+    if (!weekDetailList || !weekDetailHint) return;
+    weekDetailList.innerHTML = "";
+    var mon = S.mondayOfWeek(new Date());
+    var nextMon = new Date(mon);
+    nextMon.setDate(nextMon.getDate() + 7);
+    var sessions = S.getSessions().filter(function (s) {
+      var st = new Date(s.start).getTime();
+      var en = s.end ? new Date(s.end).getTime() : Date.now();
+      return Math.max(st, mon.getTime()) < Math.min(en, nextMon.getTime());
+    });
+    sessions.sort(function (a, b) {
+      return new Date(a.start) - new Date(b.start);
+    });
+
+    weekDetailHint.textContent =
+      "统计口径：仅计算与本周一00:00到下周一00:00重叠的时段。";
+
+    if (sessions.length === 0) {
+      var empty = document.createElement("li");
+      empty.innerHTML =
+        "<div class=\"week-detail-main\">本周暂无会话记录</div>" +
+        "<div class=\"week-detail-sub\">开始打卡后会显示每段会话的计入时长。</div>";
+      weekDetailList.appendChild(empty);
+      return;
+    }
+
+    sessions.forEach(function (s) {
+      var totalH = s.end ? W.sessionTotalMin(s.start, s.end) / 60 : (Date.now() - new Date(s.start).getTime()) / 3600000;
+      var inWeekH = getWeekContributionHours(s, mon, nextMon);
+      var li = document.createElement("li");
+      li.innerHTML =
+        "<div class=\"week-detail-main\">" +
+        s.employee +
+        " · " +
+        formatRange(s.start, s.end) +
+        "</div>" +
+        "<div class=\"week-detail-sub\">会话时长 " +
+        fmtH(totalH) +
+        "h；计入本周 " +
+        fmtH(inWeekH) +
+        "h" +
+        (s.note ? "；内容：" + s.note : "") +
+        "</div>";
+      weekDetailList.appendChild(li);
+    });
+  }
+
+  if (btnWeekDetailToggle && weekDetailPanel) {
+    btnWeekDetailToggle.addEventListener("click", function () {
+      var isHidden = weekDetailPanel.hasAttribute("hidden");
+      if (isHidden) {
+        renderWeekSessionDetails();
+        weekDetailPanel.removeAttribute("hidden");
+        btnWeekDetailToggle.textContent = "收起本周会话明细";
+      } else {
+        weekDetailPanel.setAttribute("hidden", "");
+        btnWeekDetailToggle.textContent = "查看本周会话明细";
+      }
+    });
+  }
+
   function renderWeekProgress() {
     var root = document.getElementById("weekProgressContent");
     if (!root) return;
@@ -275,6 +357,7 @@
         renderTodayLog();
         renderCalendar();
         renderWeekProgress();
+        renderWeekSessionDetails();
       })
       .catch(function (err) {
         punchToast.style.color = "#dc2626";
@@ -364,6 +447,7 @@
         renderTodayLog();
         renderCalendar();
         renderWeekProgress();
+        renderWeekSessionDetails();
       })
       .catch(function (err) {
         punchToast.style.color = "#dc2626";
@@ -414,6 +498,7 @@
       renderTodayLog();
       renderCalendar();
       renderWeekProgress();
+      renderWeekSessionDetails();
     }).catch(function (err) {
       punchToast.style.color = "#dc2626";
       punchToast.textContent = (err && err.message) || "保存失败";
@@ -498,6 +583,7 @@
       renderTodayLog();
       renderCalendar();
       renderWeekProgress();
+      renderWeekSessionDetails();
     });
   }, 60000);
 

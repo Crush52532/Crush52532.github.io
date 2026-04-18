@@ -769,6 +769,59 @@ body.theme-w .btn-punch-out {
   margin-top: 0.75rem;
 }
 
+.week-detail-toggle {
+  display: block;
+  width: 100%;
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.week-detail-panel {
+  margin-top: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.6rem;
+}
+
+.week-detail-hint {
+  margin: 0 0 0.45rem;
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.week-detail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.week-detail-list li {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 0.4rem 0.45rem;
+  margin-bottom: 0.35rem;
+}
+
+.week-detail-main {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.week-detail-sub {
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
 .week-progress-row + .week-progress-row {
   margin-top: 0.65rem;
 }
