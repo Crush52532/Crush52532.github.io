@@ -47,14 +47,12 @@
     }
   }
   function loadCloudCacheToMemory() {
-    _sessions = safeParse(localStorage.getItem(CLOUD_SESSION_CACHE_KEY), []).map(normalizeLocalSession);
-    _tasks = safeParse(localStorage.getItem(CLOUD_TASK_CACHE_KEY), []).map(normalizeTask);
-    _weekFixed = safeParse(localStorage.getItem(CLOUD_WEEK_CACHE_KEY), {});
+    _sessions = [];
+    _tasks = [];
+    _weekFixed = {};
   }
   function persistCloudCacheFromMemory() {
-    localStorage.setItem(CLOUD_SESSION_CACHE_KEY, JSON.stringify(_sessions || []));
-    localStorage.setItem(CLOUD_TASK_CACHE_KEY, JSON.stringify((_tasks || []).map(normalizeTask)));
-    localStorage.setItem(CLOUD_WEEK_CACHE_KEY, JSON.stringify(_weekFixed || {}));
+    // 云端唯一数据源模式：不在本地缓存业务数据
   }
   function refreshFromCloud(options) {
     if (!_sb) return Promise.resolve(false);
@@ -257,22 +255,24 @@
      */
     init: function () {
       if (_initPromise) return _initPromise;
-      var self = this;
       _initPromise = (function () {
         _sb = createSb();
         if (!_sb) {
           _cloud = false;
-          return Promise.resolve();
+          return Promise.reject(new Error("正在连接云端"));
         }
         _cloud = true;
-        // 先用本地缓存秒开，再后台刷新云端数据。
-        loadCloudCacheToMemory();
-        refreshFromCloud({ sessions: true, tasks: true, week: true })
-          .catch(function (e) {
-            console.error("Supabase 后台刷新失败，继续使用缓存数据：", e);
-          });
-        return Promise.resolve();
-      })();
+        return refreshFromCloud({ sessions: true, tasks: true, week: true }).catch(function (e) {
+          console.error("Supabase 初始化失败：", e);
+          _cloud = false;
+          _sb = null;
+          throw e;
+        });
+      })().catch(function (e) {
+        // 允许后续再次调用 init 时重新建立连接
+        _initPromise = null;
+        throw e;
+      });
       return _initPromise;
     },
 
@@ -317,13 +317,8 @@
     },
 
     getSessions: function () {
-      var raw;
-      if (_cloud) raw = _sessions.slice();
-      else {
-        var arr = safeParse(localStorage.getItem(SESSION_KEY), []);
-        raw = Array.isArray(arr) ? arr : [];
-      }
-      return raw.map(normalizeLocalSession);
+      if (!_cloud) return [];
+      return _sessions.slice().map(normalizeLocalSession);
     },
 
     markAllOpenSessionsTimeShifted: function () {
@@ -406,21 +401,7 @@
       if (!s || s.end) return Promise.resolve();
       var note = String(noteText || "").slice(0, NOTE_MAX_LEN);
 
-      if (!_cloud) {
-        var copy = self.getSessions().map(normalizeLocalSession);
-        var idx = -1;
-        for (var i = 0; i < copy.length; i++) {
-          if (copy[i].id === id) {
-            idx = i;
-            break;
-          }
-        }
-        if (idx < 0) return Promise.resolve();
-        copy[idx].end = endIso;
-        copy[idx].note = note;
-        self.saveSessionsLocal(copy);
-        return Promise.resolve();
-      }
+      if (!_cloud) return Promise.reject(new Error("正在连接云端"));
 
       return _sb
         .from("studio_sessions")
@@ -454,18 +435,7 @@
         return Promise.reject(new Error("只能修改已结束的会话"));
       }
 
-      if (!_cloud) {
-        var copy = list.map(normalizeLocalSession);
-        for (var a = 0; a < copy.length; a++) {
-          if (copy[a].id === id) {
-            copy[a].start = startIso;
-            copy[a].end = endIso;
-            break;
-          }
-        }
-        self.saveSessionsLocal(copy);
-        return Promise.resolve();
-      }
+      if (!_cloud) return Promise.reject(new Error("正在连接云端"));
 
       return _sb
         .from("studio_sessions")
@@ -494,17 +464,7 @@
         return Promise.reject(new Error("只能修改进行中的会话的上工时间"));
       }
 
-      if (!_cloud) {
-        var copy = list.map(normalizeLocalSession);
-        for (var b = 0; b < copy.length; b++) {
-          if (copy[b].id === id) {
-            copy[b].start = startIso;
-            break;
-          }
-        }
-        self.saveSessionsLocal(copy);
-        return Promise.resolve();
-      }
+      if (!_cloud) return Promise.reject(new Error("正在连接云端"));
 
       return _sb
         .from("studio_sessions")
@@ -520,9 +480,7 @@
         });
     },
 
-    saveSessionsLocal: function (list) {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(list));
-    },
+    saveSessionsLocal: function () {},
 
     getOpenSession: function (employee) {
       var list = this.getSessions();
@@ -547,12 +505,7 @@
       var startIso = nowIso();
       var rec = { id: id, employee: employee, start: startIso, end: null, note: "" };
 
-      if (!_cloud) {
-        var list = self.getSessions();
-        list.push(rec);
-        self.saveSessionsLocal(list);
-        return Promise.resolve(rec);
-      }
+      if (!_cloud) return Promise.reject(new Error("正在连接云端"));
 
       return _sb
         .from("studio_sessions")
@@ -602,20 +555,7 @@
         note = note.slice(0, NOTE_MAX_LEN);
       }
 
-      if (!_cloud) {
-        var copy = list.map(normalizeLocalSession);
-        for (var j = 0; j < copy.length; j++) {
-          if (copy[j].id === open.id) {
-            copy[j].end = endIso;
-            copy[j].note = note;
-            break;
-          }
-        }
-        self.saveSessionsLocal(copy);
-        return Promise.resolve(
-          Object.assign({}, open, { end: endIso, note: note })
-        );
-      }
+      if (!_cloud) return Promise.reject(new Error("正在连接云端"));
 
       return _sb
         .from("studio_sessions")
@@ -666,14 +606,9 @@
     },
 
     getFixedDaysForWeek: function (weekKey) {
-      if (_cloud) {
-        var a = _weekFixed[weekKey];
-        if (Array.isArray(a) && a.length === 7) return a.slice();
-        return [true, true, true, true, true, false, false];
-      }
-      var all = safeParse(localStorage.getItem(WEEK_CFG_KEY), {});
-      var arr = all[weekKey];
-      if (Array.isArray(arr) && arr.length === 7) return arr.slice();
+      if (!_cloud) return [true, true, true, true, true, false, false];
+      var a = _weekFixed[weekKey];
+      if (Array.isArray(a) && a.length === 7) return a.slice();
       return [true, true, true, true, true, false, false];
     },
 
@@ -690,12 +625,7 @@
       if (c !== 5) return Promise.resolve(false);
       var normalized = days7.map(Boolean);
 
-      if (!_cloud) {
-        var all = safeParse(localStorage.getItem(WEEK_CFG_KEY), {});
-        all[weekKey] = normalized;
-        localStorage.setItem(WEEK_CFG_KEY, JSON.stringify(all));
-        return Promise.resolve(true);
-      }
+      if (!_cloud) return Promise.reject(new Error("正在连接云端"));
 
       return _sb
         .from("studio_week_fixed")
@@ -716,14 +646,11 @@
     },
 
     getTasks: function () {
-      if (_cloud) return _tasks.slice().map(normalizeTask);
-      var arr = safeParse(localStorage.getItem(TASK_KEY), []);
-      return (Array.isArray(arr) ? arr : []).map(normalizeTask);
+      if (!_cloud) return [];
+      return _tasks.slice().map(normalizeTask);
     },
 
-    saveTasksLocal: function (tasks) {
-      localStorage.setItem(TASK_KEY, JSON.stringify(tasks));
-    },
+    saveTasksLocal: function () {},
 
     /**
      * @returns {Promise<object|null>}
@@ -754,12 +681,7 @@
         doneAt: null
       };
 
-      if (!_cloud) {
-        var list = this.getTasks();
-        list.push(item);
-        this.saveTasksLocal(list);
-        return Promise.resolve(item);
-      }
+      if (!_cloud) return Promise.reject(new Error("正在连接云端"));
 
       function insertWith(payload) {
         return _sb.from("studio_tasks").insert(payload).select().single();
@@ -815,29 +737,7 @@
      */
     toggleTask: function (id) {
       var self = this;
-      if (!_cloud) {
-        var now = nowIso();
-        var list = self.getTasks().map(function (x) {
-          if (x.id !== id) return x;
-          var nextDone = !x.done;
-          return x.id === id
-            ? {
-                id: x.id,
-                owner: x.owner,
-                text: x.text,
-                priority: x.priority || "low",
-                ddlDate: x.ddlDate || null,
-                scope: x.scope === "personal" ? "personal" : "studio",
-                repeatDays: Array.isArray(x.repeatDays) ? x.repeatDays.slice(0, 7) : [false, false, false, false, false, false, false],
-                done: nextDone,
-                createdAt: x.createdAt || null,
-                doneAt: nextDone ? now : null
-              }
-            : x;
-        });
-        self.saveTasksLocal(list);
-        return Promise.resolve();
-      }
+      if (!_cloud) return Promise.reject(new Error("正在连接云端"));
       var cur = _tasks.filter(function (x) {
         return x.id === id;
       })[0];
@@ -879,14 +779,7 @@
         delete quickMap[id];
         saveQuickTaskMap(quickMap);
       }
-      if (!_cloud) {
-        self.saveTasksLocal(
-          self.getTasks().filter(function (x) {
-            return x.id !== id;
-          })
-        );
-        return Promise.resolve();
-      }
+      if (!_cloud) return Promise.reject(new Error("正在连接云端"));
       return _sb
         .from("studio_tasks")
         .delete()
@@ -907,25 +800,7 @@
     updateTaskOwner: function (id, owner) {
       var self = this;
       var nextOwner = owner === "H" || owner === "W" ? owner : "U";
-      if (!_cloud) {
-        var list = self.getTasks().map(function (x) {
-          if (x.id !== id) return x;
-          return {
-            id: x.id,
-            owner: nextOwner,
-            text: x.text,
-            priority: x.priority || "low",
-            ddlDate: x.ddlDate || null,
-            scope: x.scope === "personal" ? "personal" : "studio",
-            repeatDays: Array.isArray(x.repeatDays) ? x.repeatDays.slice(0, 7) : [false, false, false, false, false, false, false],
-            done: !!x.done,
-            createdAt: x.createdAt || null,
-            doneAt: x.doneAt || null
-          };
-        });
-        self.saveTasksLocal(list);
-        return Promise.resolve();
-      }
+      if (!_cloud) return Promise.reject(new Error("正在连接云端"));
 
       function applyLocalShadow() {
         _tasks = _tasks.map(function (x) {

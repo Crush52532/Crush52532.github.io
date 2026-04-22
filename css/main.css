@@ -1171,6 +1171,20 @@ body.theme-w .btn-punch-out {
   gap: 0.45rem;
 }
 
+.task-headline {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.task-headline h3,
+.daily-head h3 {
+  margin: 0;
+}
+
+.task-headline .daily-head-actions {
+  margin-left: auto;
+}
+
 .btn-refresh-mini {
   width: 28px;
   height: 28px;
@@ -1197,6 +1211,18 @@ body.theme-w .btn-punch-out {
   border-radius: 999px;
 }
 
+.daily-mini-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+}
+
+.btn-daily-sort {
+  font-size: 0.78rem;
+  padding: 0.35rem 0.55rem;
+}
+
 .task-owner-inline {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1204,6 +1230,33 @@ body.theme-w .btn-punch-out {
   font-size: 0.75rem;
   background: #fff;
   color: var(--text);
+}
+
+.tasks-ul li.task-scope-personal {
+  box-shadow: inset 0 0 0 1px rgba(2, 132, 199, 0.22);
+}
+
+.tasks-ul li.task-scope-studio {
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+
+.scope-badge {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  margin-right: 0.35rem;
+}
+
+.scope-badge.personal {
+  color: #0c4a6e;
+  background: #e0f2fe;
+}
+
+.scope-badge.studio {
+  color: #065f46;
+  background: #d1fae5;
 }
 
 .footer-note {

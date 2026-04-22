@@ -144,10 +144,13 @@
               <section class="task-col">
                 <div class="task-headline">
                   <h3 id="task-title">工作室日常任务</h3>
-                  <button type="button" class="btn btn-ghost btn-refresh-mini" id="btnRefreshStudioTasks" title="刷新工作室任务云端数据">↻</button>
+                  <div class="daily-head-actions">
+                    <button type="button" class="btn btn-ghost btn-refresh-mini" id="btnRefreshStudioTasks" title="刷新工作室任务云端数据">↻</button>
+                    <button type="button" class="btn btn-primary" id="btnStudioAddToggle">添加任务</button>
+                  </div>
                 </div>
                 <p class="sub" style="font-size: 0.88rem; margin-bottom: 0.65rem">全员通用任务池（已完成任务进入历史）</p>
-                <form class="task-row" id="taskForm">
+                <form class="task-row" id="taskForm" hidden>
                   <input type="text" id="taskInput" placeholder="添加新任务…" maxlength="200" />
                   <select id="taskOwner" class="task-select" aria-label="负责人">
                     <option value="H">负责人：H</option>
@@ -203,11 +206,22 @@
                   </div>
                 </div>
                 <p class="sub" style="font-size: 0.88rem; margin-bottom: 0.65rem">仅显示当前成员（含工作室任务与个人任务）</p>
-                <button type="button" class="btn btn-ghost" id="btnDailyQuickAdd" aria-label="新增今日任务">+</button>
+                <div class="daily-mini-actions">
+                  <button type="button" class="btn btn-ghost" id="btnDailyQuickAdd" aria-label="新增今日任务">+</button>
+                  <button type="button" class="btn btn-ghost btn-daily-sort" id="btnDailySortToggle">排序</button>
+                </div>
                 <form class="task-row" id="dailyQuickForm" hidden>
                   <input type="text" id="dailyQuickInput" placeholder="快速添加今日任务…" maxlength="200" />
                   <button type="submit" class="btn btn-primary">添加</button>
                 </form>
+                <div class="week-detail-panel" id="dailySortPanel" hidden>
+                  <p class="week-detail-hint">排序编辑：可上下移动后确认</p>
+                  <ul class="week-detail-list" id="dailySortList"></ul>
+                  <div class="weekday-edit-actions">
+                    <button type="button" class="btn btn-primary" id="btnDailySortConfirm">确认排序</button>
+                    <button type="button" class="btn btn-ghost" id="btnDailySortCancel">取消</button>
+                  </div>
+                </div>
                 <form class="task-row" id="dailyTaskForm" hidden>
                   <input type="text" id="dailyTaskInput" placeholder="添加当前成员任务…" maxlength="200" />
                   <select id="dailyTaskPriority" class="task-select" aria-label="优先级">

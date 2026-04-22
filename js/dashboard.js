@@ -41,17 +41,36 @@
     return;
   }
 
-  S.init()
-    .then(function () {
-      return S.ensureSessionLimits();
-    })
-    .then(function () {
-      runDashboard();
-    })
-    .catch(function (e) {
-      console.error(e);
-      runDashboard();
-    });
+  var dashboardBooted = false;
+  function showConnectingCloud() {
+    var badge = document.getElementById("empBadge");
+    if (badge) {
+      badge.textContent = "正在连接云端…";
+      badge.className = "badge";
+    }
+    var toast = document.getElementById("punchToast");
+    if (toast) {
+      toast.style.color = "#64748b";
+      toast.textContent = "正在连接云端，请稍候…";
+    }
+  }
+  function bootWhenCloudReady() {
+    if (dashboardBooted) return;
+    showConnectingCloud();
+    S.init()
+      .then(function () {
+        return S.ensureSessionLimits();
+      })
+      .then(function () {
+        dashboardBooted = true;
+        runDashboard();
+      })
+      .catch(function (e) {
+        console.error(e);
+        setTimeout(bootWhenCloudReady, 2000);
+      });
+  }
+  bootWhenCloudReady();
 
   function runDashboard() {
   S.touchAuth();
@@ -909,6 +928,23 @@
   updateWeekSummary();
 
   var currentTaskPriorityFilter = "all";
+  var dailySortDraft = [];
+
+  function dailyOrderKey() {
+    return "studio_daily_order_" + emp;
+  }
+  function getDailyOrderMap() {
+    try {
+      var raw = localStorage.getItem(dailyOrderKey());
+      var o = raw ? JSON.parse(raw) : {};
+      return o && typeof o === "object" ? o : {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function setDailyOrderMap(map) {
+    localStorage.setItem(dailyOrderKey(), JSON.stringify(map || {}));
+  }
 
   function taskPriorityRank(p) {
     if (p === "high") return 1;
@@ -1088,6 +1124,12 @@
         return t.owner === emp;
       })
       .sort(function (a, b) {
+        var orderMap = getDailyOrderMap();
+        var oa = orderMap[a.id];
+        var ob = orderMap[b.id];
+        if (typeof oa === "number" && typeof ob === "number" && oa !== ob) return oa - ob;
+        if (typeof oa === "number" && typeof ob !== "number") return -1;
+        if (typeof oa !== "number" && typeof ob === "number") return 1;
         if (!!a.done !== !!b.done) return a.done ? 1 : -1;
         var byDdl = sortTasksByDdlThenCreate(a, b);
         if (byDdl !== 0) return byDdl;
@@ -1102,6 +1144,7 @@
     tasks.forEach(function (t) {
       var li = document.createElement("li");
       li.classList.add("task-priority-" + (t.priority || "low"));
+      li.classList.add(t.scope === "personal" ? "task-scope-personal" : "task-scope-studio");
       var isQuick = S.isQuickTask(t.id);
       if (isQuick) li.classList.add("task-quick-entry");
       if (t.done) li.classList.add("done");
@@ -1118,12 +1161,16 @@
       var span = document.createElement("span");
       span.style.flex = "1";
       var priLabel = isQuick && t.priority === "low" ? "" : "[" + priorityText(t.priority) + "] ";
+      var scopeBadge =
+        t.scope === "personal"
+          ? "<span class=\"scope-badge personal\">个人任务</span>"
+          : "<span class=\"scope-badge studio\">工作室任务</span>";
       span.textContent =
-        priLabel +
-        t.text +
+        priLabel + t.text +
         (t.ddlDate ? " · DDL：" + t.ddlDate : "") +
         (t.priority === "routine" ? " · 重复：" + repeatText(t.repeatDays) : "") +
         (t.scope === "personal" ? " · 个人" : " · 工作室");
+      span.innerHTML = scopeBadge + span.textContent;
       var del = document.createElement("button");
       del.type = "button";
       del.className = "btn btn-ghost";
@@ -1146,6 +1193,36 @@
   function renderTasks() {
     renderStudioTasks();
     renderDailyTasks();
+  }
+
+  function renderDailySortPanel() {
+    var list = document.getElementById("dailySortList");
+    if (!list) return;
+    list.innerHTML = "";
+    if (!dailySortDraft.length) {
+      var empty = document.createElement("li");
+      empty.textContent = "暂无可排序任务";
+      list.appendChild(empty);
+      return;
+    }
+    dailySortDraft.forEach(function (t, idx) {
+      var li = document.createElement("li");
+      li.innerHTML =
+        "<div class=\"week-detail-main\">[" +
+        (idx + 1) +
+        "] " +
+        t.text +
+        "</div>" +
+        "<div class=\"weekday-edit-actions\" style=\"margin-top:0.3rem\">" +
+        "<button type=\"button\" class=\"btn btn-ghost btn-tiny\" data-move=\"up\" data-id=\"" +
+        t.id +
+        "\">上移</button>" +
+        "<button type=\"button\" class=\"btn btn-ghost btn-tiny\" data-move=\"down\" data-id=\"" +
+        t.id +
+        "\">下移</button>" +
+        "</div>";
+      list.appendChild(li);
+    });
   }
 
   document.getElementById("taskPriority").addEventListener("change", function (e) {
@@ -1223,6 +1300,8 @@
           document.getElementById("taskDdlDate").value = "";
           hint.textContent = "";
           setAllRepeatDays("#taskRepeatPicker input[type=checkbox]", false);
+          document.getElementById("taskForm").setAttribute("hidden", "");
+          document.getElementById("btnStudioAddToggle").textContent = "添加任务";
           renderTasks();
           populateEndTaskOptions();
         } else {
@@ -1239,6 +1318,18 @@
         }
         hint.style.color = "#dc2626";
       });
+  });
+
+  document.getElementById("btnStudioAddToggle").addEventListener("click", function () {
+    var form = document.getElementById("taskForm");
+    var hidden = form.hasAttribute("hidden");
+    if (hidden) {
+      form.removeAttribute("hidden");
+      this.textContent = "收起";
+    } else {
+      form.setAttribute("hidden", "");
+      this.textContent = "添加任务";
+    }
   });
 
   document.getElementById("btnDailyAddToggle").addEventListener("click", function () {
@@ -1280,6 +1371,8 @@
           document.getElementById("dailyTaskDdlDate").value = "";
           hint.textContent = "";
           setAllRepeatDays("#dailyRepeatPicker input[type=checkbox]", false);
+          document.getElementById("dailyTaskForm").setAttribute("hidden", "");
+          document.getElementById("btnDailyAddToggle").textContent = "添加任务";
           renderTasks();
           populateEndTaskOptions();
         } else {
@@ -1320,6 +1413,57 @@
       renderTasks();
       populateEndTaskOptions();
     });
+  });
+
+  document.getElementById("btnDailySortToggle").addEventListener("click", function () {
+    var panel = document.getElementById("dailySortPanel");
+    var hidden = panel.hasAttribute("hidden");
+    if (hidden) {
+      dailySortDraft = S.getTasks().filter(function (t) {
+        return t.owner === emp && !t.done;
+      });
+      renderDailySortPanel();
+      panel.removeAttribute("hidden");
+      this.textContent = "收起排序";
+    } else {
+      panel.setAttribute("hidden", "");
+      this.textContent = "排序";
+    }
+  });
+
+  document.getElementById("dailySortList").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-move]");
+    if (!btn) return;
+    var id = btn.getAttribute("data-id");
+    var dir = btn.getAttribute("data-move");
+    var idx = -1;
+    for (var i = 0; i < dailySortDraft.length; i++) {
+      if (dailySortDraft[i].id === id) {
+        idx = i;
+        break;
+      }
+    }
+    if (idx < 0) return;
+    var ni = dir === "up" ? idx - 1 : idx + 1;
+    if (ni < 0 || ni >= dailySortDraft.length) return;
+    var tmp = dailySortDraft[idx];
+    dailySortDraft[idx] = dailySortDraft[ni];
+    dailySortDraft[ni] = tmp;
+    renderDailySortPanel();
+  });
+
+  document.getElementById("btnDailySortConfirm").addEventListener("click", function () {
+    var map = {};
+    for (var i = 0; i < dailySortDraft.length; i++) map[dailySortDraft[i].id] = i + 1;
+    setDailyOrderMap(map);
+    document.getElementById("dailySortPanel").setAttribute("hidden", "");
+    document.getElementById("btnDailySortToggle").textContent = "排序";
+    renderDailyTasks();
+  });
+
+  document.getElementById("btnDailySortCancel").addEventListener("click", function () {
+    document.getElementById("dailySortPanel").setAttribute("hidden", "");
+    document.getElementById("btnDailySortToggle").textContent = "排序";
   });
 
   renderCalendar();

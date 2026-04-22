@@ -33,14 +33,30 @@
     return;
   }
 
-  S.init()
-    .then(function () {
-      bootReport();
-    })
-    .catch(function (e) {
-      console.error(e);
-      bootReport();
-    });
+  var reportBooted = false;
+  function showConnectingCloud() {
+    var badge = document.getElementById("empBadge");
+    if (badge) {
+      badge.textContent = "正在连接云端…";
+      badge.className = "badge";
+    }
+    var range = document.getElementById("reportRange");
+    if (range) range.textContent = "正在连接云端，请稍候…";
+  }
+  function bootWhenCloudReady() {
+    if (reportBooted) return;
+    showConnectingCloud();
+    S.init()
+      .then(function () {
+        reportBooted = true;
+        bootReport();
+      })
+      .catch(function (e) {
+        console.error(e);
+        setTimeout(bootWhenCloudReady, 2000);
+      });
+  }
+  bootWhenCloudReady();
 
   function bootReport() {
   S.touchAuth();
