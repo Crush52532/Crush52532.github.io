@@ -23,6 +23,7 @@
               <p class="sub" style="margin: 0">日历、上/下工打卡与工时统计</p>
             </div>
             <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap">
+              <button type="button" class="btn btn-ghost btn-refresh-mini" id="btnRefreshWorkbench" title="刷新工作台云端数据">↻</button>
               <span class="badge" id="empBadge">—</span>
               <a href="select.html" class="btn btn-ghost" style="font-size: 0.88rem; padding: 0.45rem 0.85rem">切换成员</a>
               <button type="button" class="btn btn-ghost" id="btnLogout" style="font-size: 0.88rem; padding: 0.45rem 0.85rem">
@@ -58,6 +59,22 @@
               <div class="week-progress-card" aria-label="本周打卡进度">
                 <h3>本周打卡进度</h3>
                 <div id="weekProgressContent"></div>
+              </div>
+              <div class="clock-test-mini" aria-label="测试工具">
+                <button type="button" class="btn btn-ghost clock-toggle-btn" id="btnClockToolsToggle">展开测试工具</button>
+                <div class="clock-test-card" id="clockTestPanel" hidden>
+                  <h3>测试时钟</h3>
+                  <p class="clock-now" id="clockNowText">模拟时间：—</p>
+                  <p class="clock-hint">
+                    用于快速验证打卡与工时计算；仅影响当前浏览器本地显示与记录。
+                  </p>
+                  <div class="clock-actions">
+                    <button type="button" class="btn btn-ghost" id="btnClockPlus10m">+10 分钟</button>
+                    <button type="button" class="btn btn-ghost" id="btnClockPlus1h">+1 小时</button>
+                    <button type="button" class="btn btn-ghost" id="btnClockPlus1d">+1 天</button>
+                    <button type="button" class="btn btn-ghost" id="btnClockReset">重置真实时间</button>
+                  </div>
+                </div>
               </div>
 
               <button type="button" class="btn btn-ghost week-detail-toggle" id="btnWeekDetailToggle">查看本周会话明细</button>
@@ -123,13 +140,104 @@
           </div>
 
           <div class="punch-zone" style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border)">
-            <h3 id="task-title">日常任务</h3>
-            <p class="sub" style="font-size: 0.88rem; margin-bottom: 0.65rem">当前成员任务</p>
-            <form class="task-row" id="taskForm">
-              <input type="text" id="taskInput" placeholder="添加新任务…" maxlength="200" />
-              <button type="submit" class="btn btn-primary">添加</button>
-            </form>
-            <ul class="tasks-ul" id="taskList"></ul>
+            <div class="task-layout">
+              <section class="task-col">
+                <div class="task-headline">
+                  <h3 id="task-title">工作室日常任务</h3>
+                  <button type="button" class="btn btn-ghost btn-refresh-mini" id="btnRefreshStudioTasks" title="刷新工作室任务云端数据">↻</button>
+                </div>
+                <p class="sub" style="font-size: 0.88rem; margin-bottom: 0.65rem">全员通用任务池（已完成任务进入历史）</p>
+                <form class="task-row" id="taskForm">
+                  <input type="text" id="taskInput" placeholder="添加新任务…" maxlength="200" />
+                  <select id="taskOwner" class="task-select" aria-label="负责人">
+                    <option value="H">负责人：H</option>
+                    <option value="W">负责人：W</option>
+                    <option value="U">负责人：待认领</option>
+                  </select>
+                  <select id="taskPriority" class="task-select" aria-label="优先级">
+                    <option value="high">高优先</option>
+                    <option value="medium">中优先</option>
+                    <option value="low" selected>低优先</option>
+                    <option value="routine">日常</option>
+                  </select>
+                  <input type="date" id="taskDdlDate" class="task-date" aria-label="DDL 日期" />
+                  <button type="submit" class="btn btn-primary">添加</button>
+                </form>
+                <div class="repeat-picker" id="taskRepeatPicker" hidden>
+                  <div class="repeat-head">
+                    <span>日常重复</span>
+                    <button type="button" class="btn btn-ghost btn-tiny" id="btnTaskRepeatAll">全选</button>
+                  </div>
+                  <div class="repeat-days">
+                    <label><input type="checkbox" data-repeat-day="0" />周一</label>
+                    <label><input type="checkbox" data-repeat-day="1" />周二</label>
+                    <label><input type="checkbox" data-repeat-day="2" />周三</label>
+                    <label><input type="checkbox" data-repeat-day="3" />周四</label>
+                    <label><input type="checkbox" data-repeat-day="4" />周五</label>
+                    <label><input type="checkbox" data-repeat-day="5" />周六</label>
+                    <label><input type="checkbox" data-repeat-day="6" />周日</label>
+                  </div>
+                </div>
+                <p class="weekday-hint" id="taskFormHint"></p>
+                <div class="task-filters" id="taskFilters">
+                  <button type="button" class="btn btn-ghost task-filter active" data-p="all">全部</button>
+                  <button type="button" class="btn btn-ghost task-filter" data-p="high">高优先</button>
+                  <button type="button" class="btn btn-ghost task-filter" data-p="medium">中优先</button>
+                  <button type="button" class="btn btn-ghost task-filter" data-p="low">低优先</button>
+                  <button type="button" class="btn btn-ghost task-filter" data-p="routine">日常</button>
+                  <button type="button" class="btn btn-ghost" id="btnTaskHistoryToggle">查看任务历史</button>
+                </div>
+                <ul class="tasks-ul" id="taskList"></ul>
+                <div class="week-detail-panel" id="taskHistoryPanel" hidden>
+                  <p class="week-detail-hint">任务历史（含已完成与进行中）</p>
+                  <ul class="week-detail-list" id="taskHistoryList"></ul>
+                </div>
+              </section>
+
+              <section class="task-col daily-col">
+                <div class="daily-head">
+                  <h3 style="margin: 0">每日任务</h3>
+                  <div class="daily-head-actions">
+                    <button type="button" class="btn btn-ghost btn-refresh-mini" id="btnRefreshDailyTasks" title="刷新每日任务云端数据">↻</button>
+                    <button type="button" class="btn btn-primary" id="btnDailyAddToggle">添加任务</button>
+                  </div>
+                </div>
+                <p class="sub" style="font-size: 0.88rem; margin-bottom: 0.65rem">仅显示当前成员（含工作室任务与个人任务）</p>
+                <button type="button" class="btn btn-ghost" id="btnDailyQuickAdd" aria-label="新增今日任务">+</button>
+                <form class="task-row" id="dailyQuickForm" hidden>
+                  <input type="text" id="dailyQuickInput" placeholder="快速添加今日任务…" maxlength="200" />
+                  <button type="submit" class="btn btn-primary">添加</button>
+                </form>
+                <form class="task-row" id="dailyTaskForm" hidden>
+                  <input type="text" id="dailyTaskInput" placeholder="添加当前成员任务…" maxlength="200" />
+                  <select id="dailyTaskPriority" class="task-select" aria-label="优先级">
+                    <option value="high">高优先</option>
+                    <option value="medium">中优先</option>
+                    <option value="low" selected>低优先</option>
+                    <option value="routine">日常</option>
+                  </select>
+                  <input type="date" id="dailyTaskDdlDate" class="task-date" aria-label="DDL 日期" />
+                  <button type="submit" class="btn btn-primary">保存</button>
+                </form>
+                <div class="repeat-picker" id="dailyRepeatPicker" hidden>
+                  <div class="repeat-head">
+                    <span>日常重复</span>
+                    <button type="button" class="btn btn-ghost btn-tiny" id="btnDailyRepeatAll">全选</button>
+                  </div>
+                  <div class="repeat-days">
+                    <label><input type="checkbox" data-daily-repeat-day="0" />周一</label>
+                    <label><input type="checkbox" data-daily-repeat-day="1" />周二</label>
+                    <label><input type="checkbox" data-daily-repeat-day="2" />周三</label>
+                    <label><input type="checkbox" data-daily-repeat-day="3" />周四</label>
+                    <label><input type="checkbox" data-daily-repeat-day="4" />周五</label>
+                    <label><input type="checkbox" data-daily-repeat-day="5" />周六</label>
+                    <label><input type="checkbox" data-daily-repeat-day="6" />周日</label>
+                  </div>
+                </div>
+                <p class="weekday-hint" id="dailyTaskHint"></p>
+                <ul class="tasks-ul" id="dailyTaskList"></ul>
+              </section>
+            </div>
           </div>
         </div>
       </div>
@@ -140,8 +248,15 @@
       <div class="modal-backdrop" id="modalEndNoteBackdrop"></div>
       <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalEndTitle">
         <h4 id="modalEndTitle">本段工作记录</h4>
-        <p class="modal-hint">下工后可简要填写本时段工作内容（选填）</p>
-        <textarea id="endNoteText" class="modal-textarea" rows="3" maxlength="2000" placeholder="例如：修图、客户沟通、脚本整理…"></textarea>
+        <p class="modal-hint">请选择本段对应任务（仅显示当前员工负责的未完成任务）</p>
+        <label class="modal-label" for="endTaskSelect">任务选择</label>
+        <select id="endTaskSelect" class="modal-input">
+          <option value="">请选择任务…</option>
+        </select>
+        <div id="endNoteTextWrap">
+          <label class="modal-label" for="endNoteText">其他说明</label>
+          <textarea id="endNoteText" class="modal-textarea" rows="3" maxlength="2000" placeholder="例如：临时沟通、突发处理、其他未建任务工作…"></textarea>
+        </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-primary" id="endNoteConfirm">确认下工</button>
           <button type="button" class="btn btn-ghost" id="endNoteCancel">取消</button>
@@ -169,6 +284,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="js/supabase-config.js"></script>
+    <script src="js/clock.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/worktime.js"></script>
     <script src="js/dashboard.js"></script>

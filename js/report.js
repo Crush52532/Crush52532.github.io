@@ -1,7 +1,15 @@
 (function () {
   var S = window.StudioStore;
   var W = window.Worktime;
+  var C = window.StudioClock;
   if (!S || !W) return;
+  if (!C) {
+    C = {
+      now: function () {
+        return new Date();
+      }
+    };
+  }
 
   var img = new Image();
   img.onload = function () {
@@ -64,7 +72,7 @@
   }
 
   function renderReport() {
-    var now = new Date();
+    var now = C.now();
     var mon = S.mondayOfWeek(now);
     var lastMon = new Date(mon);
     lastMon.setDate(lastMon.getDate() - 7);
@@ -222,5 +230,8 @@
   }
 
   renderReport();
+  window.addEventListener("studio:data-updated", function () {
+    renderReport();
+  });
   }
 })();

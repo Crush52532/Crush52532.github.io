@@ -14,8 +14,15 @@ create table if not exists public.studio_sessions (
 create table if not exists public.studio_tasks (
   id text primary key,
   employee text not null check (employee in ('H', 'W')),
+  owner text not null default 'U' check (owner in ('H', 'W', 'U')),
   content text not null,
-  done boolean not null default false
+  priority text not null default 'low' check (priority in ('high', 'medium', 'low', 'routine')),
+  ddl_date date,
+  scope text not null default 'studio' check (scope in ('studio', 'personal')),
+  repeat_days jsonb not null default '[false,false,false,false,false,false,false]'::jsonb,
+  done boolean not null default false,
+  created_at timestamptz not null default now(),
+  done_at timestamptz
 );
 
 -- 每周固定工作日（week_key 如 2026-W15；days 为长度 7 的 JSON 数组，周一=索引 0）

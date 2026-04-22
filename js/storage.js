@@ -9,8 +9,13 @@
   var AUTH_SESSION_MS = 5 * 60 * 1000;
   var EMP_KEY = "studio_employee";
   var SESSION_KEY = "studio_sessions";
+  var CLOUD_SESSION_CACHE_KEY = "studio_cloud_sessions_cache";
+  var SHIFT_MARK_KEY = "studio_session_shift_marks";
   var WEEK_CFG_KEY = "studio_week_fixed";
+  var CLOUD_WEEK_CACHE_KEY = "studio_cloud_week_cache";
   var TASK_KEY = "studio_tasks";
+  var CLOUD_TASK_CACHE_KEY = "studio_cloud_tasks_cache";
+  var TASK_QUICK_KEY = "studio_task_quick_flags";
   /** 入口密码仅前端比对，无法防懂技术的访问者；真正保护数据需配合服务端校验或 Supabase Auth */
   var PASSWORD = "948223";
 
@@ -22,9 +27,91 @@
       return fallback;
     }
   }
+  function getShiftMarkMap() {
+    var m = safeParse(localStorage.getItem(SHIFT_MARK_KEY), {});
+    return m && typeof m === "object" ? m : {};
+  }
+  function saveShiftMarkMap(map) {
+    localStorage.setItem(SHIFT_MARK_KEY, JSON.stringify(map || {}));
+  }
+  function getQuickTaskMap() {
+    var m = safeParse(localStorage.getItem(TASK_QUICK_KEY), {});
+    return m && typeof m === "object" ? m : {};
+  }
+  function saveQuickTaskMap(map) {
+    localStorage.setItem(TASK_QUICK_KEY, JSON.stringify(map || {}));
+  }
+  function emitDataUpdated() {
+    if (typeof global.dispatchEvent === "function" && typeof global.CustomEvent === "function") {
+      global.dispatchEvent(new global.CustomEvent("studio:data-updated"));
+    }
+  }
+  function loadCloudCacheToMemory() {
+    _sessions = safeParse(localStorage.getItem(CLOUD_SESSION_CACHE_KEY), []).map(normalizeLocalSession);
+    _tasks = safeParse(localStorage.getItem(CLOUD_TASK_CACHE_KEY), []).map(normalizeTask);
+    _weekFixed = safeParse(localStorage.getItem(CLOUD_WEEK_CACHE_KEY), {});
+  }
+  function persistCloudCacheFromMemory() {
+    localStorage.setItem(CLOUD_SESSION_CACHE_KEY, JSON.stringify(_sessions || []));
+    localStorage.setItem(CLOUD_TASK_CACHE_KEY, JSON.stringify((_tasks || []).map(normalizeTask)));
+    localStorage.setItem(CLOUD_WEEK_CACHE_KEY, JSON.stringify(_weekFixed || {}));
+  }
+  function refreshFromCloud(options) {
+    if (!_sb) return Promise.resolve(false);
+    var opts = options || {};
+    var needSessions = opts.sessions !== false;
+    var needTasks = opts.tasks !== false;
+    var needWeek = opts.week !== false;
+    var jobs = [];
+    if (needSessions) {
+      jobs.push(
+        _sb.from("studio_sessions").select("*").order("starts_at", { ascending: true }).then(function (res) {
+          if (res.error) throw res.error;
+          _sessions = (res.data || []).map(mapSessionRow);
+        })
+      );
+    }
+    if (needTasks) {
+      jobs.push(
+        _sb.from("studio_tasks").select("*").then(function (res) {
+          if (res.error) throw res.error;
+          _tasks = (res.data || []).map(mapTaskRow);
+        })
+      );
+    }
+    if (needWeek) {
+      jobs.push(
+        _sb.from("studio_week_fixed").select("*").then(function (res) {
+          if (res.error) throw res.error;
+          _weekFixed = {};
+          (res.data || []).forEach(function (row) {
+            if (row.week_key && Array.isArray(row.days)) {
+              _weekFixed[row.week_key] = row.days.map(Boolean);
+            }
+          });
+        })
+      );
+    }
+    if (jobs.length === 0) return Promise.resolve(true);
+    return Promise.all(jobs).then(function () {
+      persistCloudCacheFromMemory();
+      emitDataUpdated();
+      return true;
+    });
+  }
 
   function genId() {
     return Date.now() + "-" + Math.random().toString(36).slice(2, 9);
+  }
+  function nowMs() {
+    return global.StudioClock && typeof global.StudioClock.nowMs === "function"
+      ? global.StudioClock.nowMs()
+      : Date.now();
+  }
+  function nowIso() {
+    return global.StudioClock && typeof global.StudioClock.nowIso === "function"
+      ? global.StudioClock.nowIso()
+      : new Date().toISOString();
   }
 
   var SESSION_MAX_MS = 6 * 60 * 60 * 1000;
@@ -62,11 +149,55 @@
   }
 
   function mapTaskRow(row) {
+    var owner = row.owner || row.employee || "U";
+    if (owner !== "H" && owner !== "W") owner = "U";
+    var priority = row.priority || "low";
+    if (priority !== "high" && priority !== "medium" && priority !== "low" && priority !== "routine") priority = "low";
+    var ddl = row.ddl_date || null;
+    var scope = row.scope === "personal" ? "personal" : "studio";
+    var repeatDays = Array.isArray(row.repeat_days)
+      ? row.repeat_days.map(Boolean).slice(0, 7)
+      : [false, false, false, false, false, false, false];
     return {
       id: row.id,
-      employee: row.employee,
+      owner: owner,
       text: row.content,
-      done: !!row.done
+      priority: priority,
+      ddlDate: ddl,
+      scope: scope,
+      repeatDays: repeatDays,
+      done: !!row.done,
+      createdAt: row.created_at || null,
+      doneAt: row.done_at || null
+    };
+  }
+  function isMissingColumnError(error, colName) {
+    var msg = String((error && (error.message || error.details || error.hint)) || "");
+    return msg.toLowerCase().indexOf(String(colName || "").toLowerCase()) >= 0;
+  }
+
+  function normalizeTask(t) {
+    if (!t || typeof t !== "object") return t;
+    var owner = t.owner || t.employee || "U";
+    if (owner !== "H" && owner !== "W") owner = "U";
+    var priority = t.priority || "low";
+    if (priority !== "high" && priority !== "medium" && priority !== "low" && priority !== "routine") priority = "low";
+    var repeatDays = Array.isArray(t.repeatDays)
+      ? t.repeatDays.map(Boolean).slice(0, 7)
+      : Array.isArray(t.repeat_days)
+        ? t.repeat_days.map(Boolean).slice(0, 7)
+        : [false, false, false, false, false, false, false];
+    return {
+      id: t.id,
+      owner: owner,
+      text: String(t.text || t.content || ""),
+      priority: priority,
+      ddlDate: t.ddlDate || t.ddl_date || null,
+      scope: t.scope === "personal" ? "personal" : "studio",
+      repeatDays: repeatDays,
+      done: !!t.done,
+      createdAt: t.createdAt || t.created_at || null,
+      doneAt: t.doneAt || t.done_at || null
     };
   }
 
@@ -112,6 +243,13 @@
     isCloud: function () {
       return _cloud;
     },
+    refreshCloudData: function (options) {
+      if (!_cloud || !_sb) return Promise.resolve(false);
+      return refreshFromCloud(options).catch(function (e) {
+        console.error("手动刷新云端数据失败：", e);
+        throw e;
+      });
+    },
 
     /**
      * 在使用 getSessions / 写入前，于 dashboard、report 页先调用。
@@ -126,33 +264,14 @@
           _cloud = false;
           return Promise.resolve();
         }
-        return Promise.all([
-          _sb.from("studio_sessions").select("*").order("starts_at", { ascending: true }),
-          _sb.from("studio_tasks").select("*"),
-          _sb.from("studio_week_fixed").select("*")
-        ])
-          .then(function (results) {
-            if (results[0].error) throw results[0].error;
-            if (results[1].error) throw results[1].error;
-            if (results[2].error) throw results[2].error;
-            _sessions = (results[0].data || []).map(mapSessionRow);
-            _tasks = (results[1].data || []).map(mapTaskRow);
-            _weekFixed = {};
-            (results[2].data || []).forEach(function (row) {
-              if (row.week_key && Array.isArray(row.days)) {
-                _weekFixed[row.week_key] = row.days.map(Boolean);
-              }
-            });
-            _cloud = true;
-          })
+        _cloud = true;
+        // 先用本地缓存秒开，再后台刷新云端数据。
+        loadCloudCacheToMemory();
+        refreshFromCloud({ sessions: true, tasks: true, week: true })
           .catch(function (e) {
-            console.error("Supabase 初始化失败，回退本地存储：", e);
-            _cloud = false;
-            _sb = null;
-            _sessions = [];
-            _tasks = [];
-            _weekFixed = {};
+            console.error("Supabase 后台刷新失败，继续使用缓存数据：", e);
           });
+        return Promise.resolve();
       })();
       return _initPromise;
     },
@@ -207,6 +326,45 @@
       return raw.map(normalizeLocalSession);
     },
 
+    markAllOpenSessionsTimeShifted: function () {
+      var list = this.getSessions();
+      var marks = getShiftMarkMap();
+      var touched = 0;
+      for (var i = 0; i < list.length; i++) {
+        var s = list[i];
+        if (s && s.id && !s.end) {
+          marks[s.id] = (parseInt(marks[s.id], 10) || 0) + 1;
+          touched++;
+        }
+      }
+      if (touched > 0) saveShiftMarkMap(marks);
+      return touched;
+    },
+
+    consumeTimeShiftMarkCount: function (sessionId) {
+      if (!sessionId) return 0;
+      var marks = getShiftMarkMap();
+      var n = parseInt(marks[sessionId], 10) || 0;
+      if (marks.hasOwnProperty(sessionId)) {
+        delete marks[sessionId];
+        saveShiftMarkMap(marks);
+      }
+      return n;
+    },
+
+    markTaskAsQuick: function (taskId) {
+      if (!taskId) return;
+      var map = getQuickTaskMap();
+      map[taskId] = 1;
+      saveQuickTaskMap(map);
+    },
+
+    isQuickTask: function (taskId) {
+      if (!taskId) return false;
+      var map = getQuickTaskMap();
+      return !!map[taskId];
+    },
+
     SESSION_MAX_MS: SESSION_MAX_MS,
     DISPLAY_12H_MS: 12 * 60 * 60 * 1000,
 
@@ -222,7 +380,7 @@
       list.forEach(function (s) {
         if (s.end) return;
         var st = new Date(s.start).getTime();
-        if (Date.now() - st >= maxMs) {
+        if (nowMs() - st >= maxMs) {
           toClose.push(s);
         }
       });
@@ -274,6 +432,7 @@
           if (res.error) throw res.error;
           var mapped = mapSessionRow(res.data);
           replaceSessionInArray(_sessions, id, mapped);
+          persistCloudCacheFromMemory();
         });
     },
 
@@ -318,6 +477,7 @@
           if (res.error) throw res.error;
           var mapped = mapSessionRow(res.data);
           replaceSessionInArray(_sessions, id, mapped);
+          persistCloudCacheFromMemory();
         });
     },
 
@@ -356,6 +516,7 @@
           if (res.error) throw res.error;
           var mapped = mapSessionRow(res.data);
           replaceSessionInArray(_sessions, id, mapped);
+          persistCloudCacheFromMemory();
         });
     },
 
@@ -383,7 +544,7 @@
         return Promise.resolve(null);
       }
       var id = genId();
-      var startIso = new Date().toISOString();
+      var startIso = nowIso();
       var rec = { id: id, employee: employee, start: startIso, end: null, note: "" };
 
       if (!_cloud) {
@@ -408,6 +569,7 @@
           if (res.error) throw res.error;
           var mapped = mapSessionRow(res.data);
           _sessions.push(mapped);
+          persistCloudCacheFromMemory();
           return mapped;
         });
     },
@@ -431,8 +593,14 @@
       if (!open) return Promise.resolve(null);
       var startMs = new Date(open.start).getTime();
       var capMs = startMs + SESSION_MAX_MS;
-      var endIso = new Date(Math.min(Date.now(), capMs)).toISOString();
+      var endIso = new Date(Math.min(nowMs(), capMs)).toISOString();
       var note = String(workNote != null ? workNote : "").trim().slice(0, NOTE_MAX_LEN);
+      var shiftCount = self.consumeTimeShiftMarkCount(open.id);
+      if (shiftCount > 0) {
+        var shiftTag = "（本段使用测试时钟偏移 " + shiftCount + " 次）";
+        note = (note ? note + " " : "") + shiftTag;
+        note = note.slice(0, NOTE_MAX_LEN);
+      }
 
       if (!_cloud) {
         var copy = list.map(normalizeLocalSession);
@@ -468,6 +636,7 @@
               }
             }
           }
+          persistCloudCacheFromMemory();
           return mapped;
         });
     },
@@ -537,6 +706,7 @@
         .then(function (res) {
           if (res.error) throw res.error;
           _weekFixed[weekKey] = normalized.slice();
+          persistCloudCacheFromMemory();
           return true;
         })
         .catch(function (e) {
@@ -546,9 +716,9 @@
     },
 
     getTasks: function () {
-      if (_cloud) return _tasks.slice();
+      if (_cloud) return _tasks.slice().map(normalizeTask);
       var arr = safeParse(localStorage.getItem(TASK_KEY), []);
-      return Array.isArray(arr) ? arr : [];
+      return (Array.isArray(arr) ? arr : []).map(normalizeTask);
     },
 
     saveTasksLocal: function (tasks) {
@@ -558,11 +728,31 @@
     /**
      * @returns {Promise<object|null>}
      */
-    addTask: function (employee, text) {
+    addTask: function (owner, text, priority, ddlDate, options) {
       var t = String(text || "").trim();
       if (!t) return Promise.resolve(null);
+      if (owner !== "H" && owner !== "W") owner = "U";
+      if (priority !== "high" && priority !== "medium" && priority !== "low" && priority !== "routine") priority = "low";
+      var ddl = priority === "low" || priority === "routine" ? null : ddlDate || null;
+      var scope = options && options.scope === "personal" ? "personal" : "studio";
+      var repeatDays = [false, false, false, false, false, false, false];
+      if (priority === "routine" && options && Array.isArray(options.repeatDays)) {
+        repeatDays = options.repeatDays.map(Boolean).slice(0, 7);
+      }
+      var createdAt = nowIso();
       var id = genId();
-      var item = { id: id, employee: employee, text: t, done: false };
+      var item = {
+        id: id,
+        owner: owner,
+        text: t,
+        priority: priority,
+        ddlDate: ddl,
+        scope: scope,
+        repeatDays: repeatDays,
+        done: false,
+        createdAt: createdAt,
+        doneAt: null
+      };
 
       if (!_cloud) {
         var list = this.getTasks();
@@ -571,20 +761,51 @@
         return Promise.resolve(item);
       }
 
-      return _sb
-        .from("studio_tasks")
-        .insert({
-          id: id,
-          employee: employee,
-          content: t,
-          done: false
-        })
-        .select()
-        .single()
+      function insertWith(payload) {
+        return _sb.from("studio_tasks").insert(payload).select().single();
+      }
+      var fullPayload = {
+        id: id,
+        owner: owner,
+        employee: owner === "U" ? "H" : owner,
+        content: t,
+        priority: priority,
+        ddl_date: ddl,
+        scope: scope,
+        repeat_days: repeatDays,
+        done: false,
+        created_at: createdAt,
+        done_at: null
+      };
+      return insertWith(fullPayload)
         .then(function (res) {
           if (res.error) throw res.error;
+          return res;
+        })
+        .catch(function (err) {
+          if (isMissingColumnError(err, "repeat_days") || isMissingColumnError(err, "scope")) {
+            var fallbackPayload = {
+              id: id,
+              owner: owner,
+              employee: owner === "U" ? "H" : owner,
+              content: t,
+              priority: priority,
+              ddl_date: ddl,
+              done: false,
+              created_at: createdAt,
+              done_at: null
+            };
+            return insertWith(fallbackPayload).then(function (res2) {
+              if (res2.error) throw res2.error;
+              return res2;
+            });
+          }
+          throw err;
+        })
+        .then(function (res) {
           var mapped = mapTaskRow(res.data);
           _tasks.push(mapped);
+          persistCloudCacheFromMemory();
           return mapped;
         });
     },
@@ -595,9 +816,23 @@
     toggleTask: function (id) {
       var self = this;
       if (!_cloud) {
+        var now = nowIso();
         var list = self.getTasks().map(function (x) {
+          if (x.id !== id) return x;
+          var nextDone = !x.done;
           return x.id === id
-            ? { id: x.id, employee: x.employee, text: x.text, done: !x.done }
+            ? {
+                id: x.id,
+                owner: x.owner,
+                text: x.text,
+                priority: x.priority || "low",
+                ddlDate: x.ddlDate || null,
+                scope: x.scope === "personal" ? "personal" : "studio",
+                repeatDays: Array.isArray(x.repeatDays) ? x.repeatDays.slice(0, 7) : [false, false, false, false, false, false, false],
+                done: nextDone,
+                createdAt: x.createdAt || null,
+                doneAt: nextDone ? now : null
+              }
             : x;
         });
         self.saveTasksLocal(list);
@@ -610,13 +845,27 @@
       var next = !cur.done;
       return _sb
         .from("studio_tasks")
-        .update({ done: next })
+        .update({ done: next, done_at: next ? nowIso() : null })
         .eq("id", id)
         .then(function (res) {
           if (res.error) throw res.error;
           _tasks = _tasks.map(function (x) {
-            return x.id === id ? { id: x.id, employee: x.employee, text: x.text, done: next } : x;
+            return x.id === id
+              ? {
+                  id: x.id,
+                  owner: x.owner,
+                  text: x.text,
+                  priority: x.priority || "low",
+                  ddlDate: x.ddlDate || null,
+                  scope: x.scope === "personal" ? "personal" : "studio",
+                  repeatDays: Array.isArray(x.repeatDays) ? x.repeatDays.slice(0, 7) : [false, false, false, false, false, false, false],
+                  done: next,
+                  createdAt: x.createdAt || null,
+                  doneAt: next ? nowIso() : null
+                }
+              : x;
           });
+          persistCloudCacheFromMemory();
         });
     },
 
@@ -625,6 +874,11 @@
      */
     deleteTask: function (id) {
       var self = this;
+      var quickMap = getQuickTaskMap();
+      if (quickMap.hasOwnProperty(id)) {
+        delete quickMap[id];
+        saveQuickTaskMap(quickMap);
+      }
       if (!_cloud) {
         self.saveTasksLocal(
           self.getTasks().filter(function (x) {
@@ -642,6 +896,79 @@
           _tasks = _tasks.filter(function (x) {
             return x.id !== id;
           });
+          persistCloudCacheFromMemory();
+        });
+    },
+
+    /**
+     * 修改任务负责人（H/W/待认领）
+     * @returns {Promise<void>}
+     */
+    updateTaskOwner: function (id, owner) {
+      var self = this;
+      var nextOwner = owner === "H" || owner === "W" ? owner : "U";
+      if (!_cloud) {
+        var list = self.getTasks().map(function (x) {
+          if (x.id !== id) return x;
+          return {
+            id: x.id,
+            owner: nextOwner,
+            text: x.text,
+            priority: x.priority || "low",
+            ddlDate: x.ddlDate || null,
+            scope: x.scope === "personal" ? "personal" : "studio",
+            repeatDays: Array.isArray(x.repeatDays) ? x.repeatDays.slice(0, 7) : [false, false, false, false, false, false, false],
+            done: !!x.done,
+            createdAt: x.createdAt || null,
+            doneAt: x.doneAt || null
+          };
+        });
+        self.saveTasksLocal(list);
+        return Promise.resolve();
+      }
+
+      function applyLocalShadow() {
+        _tasks = _tasks.map(function (x) {
+          if (x.id !== id) return x;
+          return {
+            id: x.id,
+            owner: nextOwner,
+            text: x.text,
+            priority: x.priority || "low",
+            ddlDate: x.ddlDate || null,
+            scope: x.scope === "personal" ? "personal" : "studio",
+            repeatDays: Array.isArray(x.repeatDays) ? x.repeatDays.slice(0, 7) : [false, false, false, false, false, false, false],
+            done: !!x.done,
+            createdAt: x.createdAt || null,
+            doneAt: x.doneAt || null
+          };
+        });
+      }
+
+      return _sb
+        .from("studio_tasks")
+        .update({ owner: nextOwner, employee: nextOwner === "U" ? "H" : nextOwner })
+        .eq("id", id)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          applyLocalShadow();
+        })
+        .catch(function (err) {
+          if (isMissingColumnError(err, "owner")) {
+            return _sb
+              .from("studio_tasks")
+              .update({ employee: nextOwner === "U" ? "H" : nextOwner })
+              .eq("id", id)
+              .then(function (res2) {
+                if (res2.error) throw res2.error;
+                applyLocalShadow();
+                persistCloudCacheFromMemory();
+              });
+          }
+          throw err;
+        })
+        .then(function () {
+          persistCloudCacheFromMemory();
         });
     }
   };
