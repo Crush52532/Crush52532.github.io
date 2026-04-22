@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作室 — 灵感</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/main.css" />
+  </head>
+  <body>
+    <div class="page-bg" id="pageBg"></div>
+    <div class="wrap">
+      <div class="card">
+        <div class="card-inner">
+          <div class="topbar">
+            <div>
+              <h1>灵感</h1>
+              <p class="sub" style="margin: 0">记录、修改并保存当前成员的灵感</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap">
+              <span class="badge" id="empBadge">—</span>
+              <a href="dashboard.html" class="btn btn-ghost" style="font-size: 0.88rem; padding: 0.45rem 0.85rem">返回工作台</a>
+              <button type="button" class="btn btn-ghost" id="btnLogout" style="font-size: 0.88rem; padding: 0.45rem 0.85rem">退出</button>
+            </div>
+          </div>
+
+          <form class="task-row" id="ideaForm">
+            <textarea id="ideaInput" class="modal-textarea" rows="3" maxlength="4000" placeholder="记录一个灵感..."></textarea>
+            <button type="submit" class="btn btn-primary">保存灵感</button>
+          </form>
+          <div class="task-row" id="ideaFilterRow">
+            <input type="text" id="ideaSearchInput" placeholder="搜索关键词..." maxlength="200" />
+            <input type="date" id="ideaDateFrom" class="task-date" aria-label="开始日期" />
+            <input type="date" id="ideaDateTo" class="task-date" aria-label="结束日期" />
+            <button type="button" class="btn btn-ghost" id="btnIdeaFilterClear">清空筛选</button>
+          </div>
+          <p class="weekday-hint" id="ideaHint"></p>
+
+          <ul class="tasks-ul" id="ideaList"></ul>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/clock.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/idea.js"></script>
+  </body>
+</html>

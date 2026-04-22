@@ -1141,7 +1141,20 @@
       ul.appendChild(empty);
       return;
     }
-    tasks.forEach(function (t) {
+    var groups = [
+      { scope: "personal", title: "个人任务" },
+      { scope: "studio", title: "工作室任务" }
+    ];
+    groups.forEach(function (g) {
+      var titleLi = document.createElement("li");
+      titleLi.className = "week-detail-group-title";
+      titleLi.textContent = g.title;
+      ul.appendChild(titleLi);
+      tasks
+        .filter(function (x) {
+          return x.scope === g.scope;
+        })
+        .forEach(function (t) {
       var li = document.createElement("li");
       li.classList.add("task-priority-" + (t.priority || "low"));
       li.classList.add(t.scope === "personal" ? "task-scope-personal" : "task-scope-studio");
@@ -1187,6 +1200,7 @@
       li.appendChild(span);
       li.appendChild(del);
       ul.appendChild(li);
+        });
     });
   }
 
@@ -1298,6 +1312,8 @@
         if (item) {
           input.value = "";
           document.getElementById("taskDdlDate").value = "";
+          document.getElementById("taskRepeatPicker").setAttribute("hidden", "");
+          document.getElementById("taskPriority").value = "low";
           hint.textContent = "";
           setAllRepeatDays("#taskRepeatPicker input[type=checkbox]", false);
           document.getElementById("taskForm").setAttribute("hidden", "");
@@ -1325,10 +1341,10 @@
     var hidden = form.hasAttribute("hidden");
     if (hidden) {
       form.removeAttribute("hidden");
-      this.textContent = "收起";
+      this.textContent = "保存";
     } else {
-      form.setAttribute("hidden", "");
-      this.textContent = "添加任务";
+      if (typeof form.requestSubmit === "function") form.requestSubmit();
+      else form.dispatchEvent(new Event("submit", { cancelable: true }));
     }
   });
 
@@ -1339,10 +1355,10 @@
     if (hidden) {
       quickForm.setAttribute("hidden", "");
       form.removeAttribute("hidden");
-      this.textContent = "收起";
+      this.textContent = "保存";
     } else {
-      form.setAttribute("hidden", "");
-      this.textContent = "添加任务";
+      if (typeof form.requestSubmit === "function") form.requestSubmit();
+      else form.dispatchEvent(new Event("submit", { cancelable: true }));
     }
   });
 
@@ -1369,6 +1385,8 @@
         if (item) {
           input.value = "";
           document.getElementById("dailyTaskDdlDate").value = "";
+          document.getElementById("dailyRepeatPicker").setAttribute("hidden", "");
+          document.getElementById("dailyTaskPriority").value = "low";
           hint.textContent = "";
           setAllRepeatDays("#dailyRepeatPicker input[type=checkbox]", false);
           document.getElementById("dailyTaskForm").setAttribute("hidden", "");
@@ -1395,7 +1413,10 @@
       mainForm.setAttribute("hidden", "");
       mainBtn.textContent = "添加任务";
       form.removeAttribute("hidden");
-    } else form.setAttribute("hidden", "");
+    } else {
+      if (typeof form.requestSubmit === "function") form.requestSubmit();
+      else form.dispatchEvent(new Event("submit", { cancelable: true }));
+    }
   });
 
   document.getElementById("dailyQuickForm").addEventListener("submit", function (e) {

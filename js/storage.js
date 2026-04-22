@@ -794,6 +794,93 @@
     },
 
     /**
+     * 按员工读取灵感（按更新时间倒序）
+     */
+    getIdeas: function (employee) {
+      if (!_cloud || !_sb) return Promise.reject(new Error("正在连接云端"));
+      return _sb
+        .from("studio_ideas")
+        .select("*")
+        .eq("employee", employee)
+        .order("updated_at", { ascending: false })
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return (res.data || []).map(function (row) {
+            return {
+              id: row.id,
+              employee: row.employee,
+              content: String(row.content || ""),
+              createdAt: row.created_at || null,
+              updatedAt: row.updated_at || null
+            };
+          });
+        });
+    },
+
+    addIdea: function (employee, content) {
+      if (!_cloud || !_sb) return Promise.reject(new Error("正在连接云端"));
+      var text = String(content || "").trim();
+      if (!text) return Promise.resolve(null);
+      var id = genId();
+      var now = nowIso();
+      return _sb
+        .from("studio_ideas")
+        .insert({
+          id: id,
+          employee: employee,
+          content: text,
+          created_at: now,
+          updated_at: now
+        })
+        .select()
+        .single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return {
+            id: res.data.id,
+            employee: res.data.employee,
+            content: String(res.data.content || ""),
+            createdAt: res.data.created_at || null,
+            updatedAt: res.data.updated_at || null
+          };
+        });
+    },
+
+    updateIdea: function (id, content) {
+      if (!_cloud || !_sb) return Promise.reject(new Error("正在连接云端"));
+      var text = String(content || "").trim();
+      if (!text) return Promise.reject(new Error("灵感内容不能为空"));
+      var now = nowIso();
+      return _sb
+        .from("studio_ideas")
+        .update({ content: text, updated_at: now })
+        .eq("id", id)
+        .select()
+        .single()
+        .then(function (res) {
+          if (res.error) throw res.error;
+          return {
+            id: res.data.id,
+            employee: res.data.employee,
+            content: String(res.data.content || ""),
+            createdAt: res.data.created_at || null,
+            updatedAt: res.data.updated_at || null
+          };
+        });
+    },
+
+    deleteIdea: function (id) {
+      if (!_cloud || !_sb) return Promise.reject(new Error("正在连接云端"));
+      return _sb
+        .from("studio_ideas")
+        .delete()
+        .eq("id", id)
+        .then(function (res) {
+          if (res.error) throw res.error;
+        });
+    },
+
+    /**
      * 修改任务负责人（H/W/待认领）
      * @returns {Promise<void>}
      */
